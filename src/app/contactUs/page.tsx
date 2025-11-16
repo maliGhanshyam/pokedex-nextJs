@@ -49,8 +49,8 @@ export default function ContactUsPage() {
             Get in Touch
           </h1>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Have a question, suggestion, or feedback? We'd love to hear from you!
-            Reach out to us and we'll get back to you as soon as possible.
+            Have a question, suggestion, or feedback? We&apos;d love to hear from you!
+            Reach out to us and we&apos;ll get back to you as soon as possible.
           </p>
         </div>
 
@@ -170,7 +170,7 @@ export default function ContactUsPage() {
                   onChange={handleChange}
                   required
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-400 focus:border-transparent outline-none transition"
-                  placeholder="What's this about?"
+                  placeholder={"What's this about?"}
                 />
               </div>
 

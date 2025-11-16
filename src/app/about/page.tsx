@@ -88,7 +88,7 @@ export default function AboutPage() {
             Our Mission
           </h2>
           <p className="text-center text-gray-600 mb-12 max-w-2xl mx-auto">
-            Learn more about what drives us and how we're building the ultimate
+            Learn more about what drives us and how we&apos;re building the ultimate
             Pokémon resource
           </p>
 
@@ -162,7 +162,7 @@ export default function AboutPage() {
                 Always Improving
               </h3>
               <p className="text-gray-600 mb-4">
-                We're constantly working to improve PokéDex with new features,
+                We&apos;re constantly working to improve PokéDex with new features,
                 better performance, and more comprehensive data. Your feedback
                 helps us grow.
               </p>
