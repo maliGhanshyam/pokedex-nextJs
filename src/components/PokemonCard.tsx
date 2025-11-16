@@ -25,7 +25,7 @@ export default function PokemonCard({ pokemon }: { pokemon: PokemonDetails }) {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-orange-100 to-yellow-200 capitalize px-4 py-8">
-      <div className="w-full max-w-md p-6 sm:p-10 bg-white rounded-3xl shadow-2xl transform hover:scale-90 transition duration-300">
+      <div className="w-full max-w-md p-6 sm:p-10 bg-white rounded-3xl shadow-2xl transform hover:scale-105 transition duration-300">
         {/* Image Container */}
         <div className="w-40 h-40 mx-auto mb-4 rounded-full bg-gradient-to-br from-orange-100 to-yellow-100 border-2 border-orange-200 p-4 flex items-center justify-center shadow-inner">
           <Image
