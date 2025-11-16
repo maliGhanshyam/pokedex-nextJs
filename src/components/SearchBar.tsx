@@ -1,15 +1,28 @@
 "use client";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useEffect, useState, useRef } from "react";
 
 export default function SearchInput() {
   const router = useRouter();
   const params = useSearchParams();
+  const pathname = usePathname();
+  const isInitialMount = useRef(true);
 
   const initialQuery = params.get("search") || "";
   const [query, setQuery] = useState(initialQuery);
 
   useEffect(() => {
+    // Skip on initial mount and only run on home page
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+
+    // Only redirect if we're on the home page
+    if (pathname !== "/") {
+      return;
+    }
+
     const delayDebounce = setTimeout(() => {
       const currentPage = params.get("page") || "1";
       const trimmed = query.trim();
@@ -18,7 +31,7 @@ export default function SearchInput() {
     }, 500); // ⏳ debounce delay (ms)
 
     return () => clearTimeout(delayDebounce);
-  }, [query]);
+  }, [query, pathname, router]);
 
   return (
     <div className="flex items-center space-x-2">

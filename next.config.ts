@@ -1,8 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Output configuration for production
-  output: "standalone", // Creates a minimal server for deployment
+  // Output configuration for production only
+  ...(process.env.NODE_ENV === "production" && {
+    output: "standalone", // Creates a minimal server for deployment
+  }),
   // Optimize images
   images: {
     remotePatterns: [

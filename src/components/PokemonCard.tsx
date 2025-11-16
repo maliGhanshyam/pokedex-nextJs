@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { PokemonDetails } from "@/types/pokemon";
 import TypeChip from "./TypeChip";
 import InfoChip from "./InfoChip";
@@ -27,10 +28,13 @@ export default function PokemonCard({ pokemon }: { pokemon: PokemonDetails }) {
       <div className="w-full max-w-md p-6 sm:p-10 bg-white rounded-3xl shadow-2xl transform hover:scale-90 transition duration-300">
         {/* Image Container */}
         <div className="w-40 h-40 mx-auto mb-4 rounded-full bg-gradient-to-br from-orange-100 to-yellow-100 border-2 border-orange-200 p-4 flex items-center justify-center shadow-inner">
-          <img
+          <Image
             src={imageUrl}
             alt={pokemon.name}
-            className="w-28 h-28 object-contain drop-shadow-md"
+            width={112}
+            height={112}
+            className="object-contain drop-shadow-md"
+            quality={95}
           />
         </div>
 
@@ -100,15 +104,43 @@ export default function PokemonCard({ pokemon }: { pokemon: PokemonDetails }) {
             Stats
           </h3> */}
           <div className="grid grid-cols-3 gap-2 sm:gap-3">
-            {pokemon.stats.map((statObj, index) => (
-              <InfoChip
-                key={index}
-                label={statObj.stat.name.replace("-", " ")}
-                value={statObj.base_stat}
-                variant={statObj.stat.name as any}
-                icon="📊"
-              />
-            ))}
+            {pokemon.stats.map((statObj, index) => {
+              // Map stat names to valid variant types
+              const statNameToVariant = (
+                name: string
+              ): "hp" | "attack" | "defense" | "special-attack" | "special-defense" | "speed" | "default" => {
+                const normalized = name.toLowerCase().replace(/\s+/g, "-");
+                if (
+                  [
+                    "hp",
+                    "attack",
+                    "defense",
+                    "special-attack",
+                    "special-defense",
+                    "speed",
+                  ].includes(normalized)
+                ) {
+                  return normalized as
+                    | "hp"
+                    | "attack"
+                    | "defense"
+                    | "special-attack"
+                    | "special-defense"
+                    | "speed";
+                }
+                return "default";
+              };
+
+              return (
+                <InfoChip
+                  key={index}
+                  label={statObj.stat.name.replace("-", " ")}
+                  value={statObj.base_stat}
+                  variant={statNameToVariant(statObj.stat.name)}
+                  icon="📊"
+                />
+              );
+            })}
           </div>
         </div>
       </div>

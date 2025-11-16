@@ -26,7 +26,7 @@ export interface PokemonDetails {
   height: number;
   weight: number;
   abilities: { ability: { name: string } }[];
-  species: { name: { name: string } }[];
+  species: { name: string };
   stats: {
     base_stat: number;
     effort: number;

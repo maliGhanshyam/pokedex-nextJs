@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { getPokemonList } from "@/services/pokeapi";
 import { InfoChip } from "@/components";
 import { SearchParams } from "@/types/propsInterface";
@@ -37,7 +38,7 @@ export default async function HomePage({ searchParams }: SearchParams) {
   // Pagination range
   const half = Math.floor(MAX_VISIBLE_PAGES / 2);
   let start = Math.max(1, currentPage - half);
-  let end = Math.min(totalPages, start + MAX_VISIBLE_PAGES - 1);
+  const end = Math.min(totalPages, start + MAX_VISIBLE_PAGES - 1);
   if (end - start < MAX_VISIBLE_PAGES - 1) {
     start = Math.max(1, end - MAX_VISIBLE_PAGES + 1);
   }
@@ -50,28 +51,26 @@ export default async function HomePage({ searchParams }: SearchParams) {
             <div className="w-40 sm:w-48 md:w-52 lg:w-56">
               <div className="relative h-40 w-full [transform-style:preserve-3d] transition-all duration-500 group-hover:[transform:rotateY(180deg)]">
                 {/* Front */}
-                <div className="absolute inset-0 bg-white p-4 rounded shadow text-center backface-hidden flex flex-col items-center justify-center">
-                  <img
-                    src={pokemon.image}
+                <div className="absolute inset-0 bg-white p-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 text-center backface-hidden flex flex-col items-center justify-center border border-gray-100">
+                  <Image
+                    src={pokemon.imageOfficial || pokemon.image}
                     alt={pokemon.name}
-                    className="w-20 h-20 mx-auto object-contain"
+                    width={100}
+                    height={100}
+                    className="mx-auto object-contain drop-shadow-md"
+                    quality={90}
+                    priority={currentPage === 1 && offset < 6}
                   />
                   <span className="capitalize text-lg font-medium block mt-2">
-                    <InfoChip label="" value={pokemon.name} variant="defense" />
+                    {pokemon.name}
                   </span>
                 </div>
                 {/* Back */}
-                <div className="absolute inset-0 bg-white p-4 rounded shadow text-center [transform:rotateY(180deg)] backface-hidden flex flex-col justify-center">
+                <div className="absolute inset-0 bg-white p-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 text-center [transform:rotateY(180deg)] backface-hidden flex flex-col justify-center border border-gray-100">
                   <div className="mb-2">
                     <span className="capitalize text-lg font-medium block">
                       {pokemon.name}
                     </span>
-                    {pokemon.types && (
-                      <p className="text-sm mt-1">
-                        <span className="font-semibold">Type:</span>{" "}
-                        {pokemon.types.map((t) => t.type.name).join(", ")}
-                      </p>
-                    )}
                   </div>
                   <Link
                     href={`/pokemon/${pokemon.name}`}
@@ -92,7 +91,7 @@ export default async function HomePage({ searchParams }: SearchParams) {
           {currentPage > 1 && (
             <Link
               href={`/?page=${currentPage - 1}&search=${searchTerm}`}
-              className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
+              className="px-3 py-1 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
             >
               Previous
             </Link>
@@ -104,7 +103,7 @@ export default async function HomePage({ searchParams }: SearchParams) {
               <Link
                 key={page}
                 href={`/?page=${page}&search=${searchTerm}`}
-                className={`px-3 py-1 rounded ${
+                className={`px-3 py-1 rounded-lg transition-colors ${
                   currentPage === page
                     ? "bg-orange-400 text-white"
                     : "bg-gray-200 hover:bg-gray-300"
@@ -118,7 +117,7 @@ export default async function HomePage({ searchParams }: SearchParams) {
           {currentPage < totalPages && (
             <Link
               href={`/?page=${currentPage + 1}&search=${searchTerm}`}
-              className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
+              className="px-3 py-1 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
             >
               Next
             </Link>
