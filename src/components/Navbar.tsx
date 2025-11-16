@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Suspense } from "react";
 import SearchBar from "./SearchBar";
 
 const Navbar = () => {
@@ -33,7 +34,9 @@ const Navbar = () => {
             </Link>
           </li>
           <li>
-            <SearchBar />
+            <Suspense fallback={<div className="w-32 h-8 bg-gray-700 rounded animate-pulse"></div>}>
+              <SearchBar />
+            </Suspense>
           </li>
           {/* Add more links if needed */}
         </ul>
