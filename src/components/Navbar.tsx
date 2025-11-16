@@ -5,15 +5,15 @@ import SearchBar from "./SearchBar";
 
 const Navbar = () => {
   return (
-    <nav className="bg-gray-800 text-white px-6 py-4 shadow-md">
-      <div className="container mx-auto flex justify-between items-center">
+    <nav className="bg-gray-800 text-white px-4 sm:px-6 py-4 shadow-md">
+      <div className="container mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
         <Link
           href="/"
-          className="text-3xl font-bold text-yellow-400 hover:text-yellow-300 transition"
+          className="text-2xl sm:text-3xl font-bold text-yellow-400 hover:text-yellow-300 transition"
         >
           PokéDex
         </Link>
-        <ul className="flex space-x-6">
+        <ul className="flex flex-wrap justify-center items-center gap-3 sm:gap-6 text-sm sm:text-base">
           <li>
             <Link href="/" className="hover:text-yellow-400 transition">
               Home

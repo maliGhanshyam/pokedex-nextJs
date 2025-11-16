@@ -27,7 +27,7 @@ export default function SearchInput() {
         value={query}
         placeholder="Search Pokémon..."
         onChange={(e) => setQuery(e.target.value)}
-        className="px-2 py-1 border rounded"
+        className="px-2 py-1 border rounded text-sm sm:text-base w-32 sm:w-auto min-w-[120px]"
       />
     </div>
   );

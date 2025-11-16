@@ -23,8 +23,8 @@ export default function PokemonCard({ pokemon }: { pokemon: PokemonDetails }) {
   const weightInKg = (pokemon.weight / 10).toFixed(1);
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-orange-100 to-yellow-200 capitalize">
-      <div className="w-full max-w-md p-10 bg-white rounded-3xl shadow-2xl transform hover:scale-90 transition duration-300">
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-orange-100 to-yellow-200 capitalize px-4 py-8">
+      <div className="w-full max-w-md p-6 sm:p-10 bg-white rounded-3xl shadow-2xl transform hover:scale-90 transition duration-300">
         {/* Image Container */}
         <div className="w-40 h-40 mx-auto mb-4 rounded-full bg-gradient-to-br from-orange-100 to-yellow-100 border-2 border-orange-200 p-4 flex items-center justify-center shadow-inner">
           <img
@@ -41,7 +41,7 @@ export default function PokemonCard({ pokemon }: { pokemon: PokemonDetails }) {
         </h1>
 
         {/* Info Grid */}
-        <div className="grid grid-cols-3 gap-4 mb-4">
+        <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4">
           <InfoChip
             label="Height"
             value={`${heightInMeters} m`}
@@ -99,7 +99,7 @@ export default function PokemonCard({ pokemon }: { pokemon: PokemonDetails }) {
           {/* <h3 className="text-sm font-semibold text-gray-500 mb-2 text-center">
             Stats
           </h3> */}
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
             {pokemon.stats.map((statObj, index) => (
               <InfoChip
                 key={index}

@@ -43,11 +43,11 @@ export default async function HomePage({ searchParams }: SearchParams) {
   }
 
   return (
-    <div className="p-8 bg-gradient-to-br from-orange-100 to-yellow-200">
+    <div className="p-4 sm:p-8 bg-gradient-to-br from-orange-100 to-yellow-200 min-h-screen">
       <ul className="flex flex-wrap gap-4 justify-center">
         {paginatedResults.map((pokemon) => (
           <li key={pokemon.name} className="group">
-            <div className="w-48 md:w-48 lg:w-55">
+            <div className="w-40 sm:w-48 md:w-52 lg:w-56">
               <div className="relative h-40 w-full [transform-style:preserve-3d] transition-all duration-500 group-hover:[transform:rotateY(180deg)]">
                 {/* Front */}
                 <div className="absolute inset-0 bg-white p-4 rounded shadow text-center backface-hidden flex flex-col items-center justify-center">
@@ -88,7 +88,7 @@ export default async function HomePage({ searchParams }: SearchParams) {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="mt-8 flex justify-end items-center space-x-2">
+        <div className="mt-8 flex flex-wrap justify-center sm:justify-end items-center gap-2 px-4">
           {currentPage > 1 && (
             <Link
               href={`/?page=${currentPage - 1}&search=${searchTerm}`}

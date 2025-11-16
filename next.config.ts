@@ -1,7 +1,24 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Output configuration for production
+  output: "standalone", // Creates a minimal server for deployment
+  // Optimize images
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "raw.githubusercontent.com",
+      },
+      {
+        protocol: "https",
+        hostname: "pokeapi.co",
+      },
+    ],
+  },
+  // Production optimizations
+  compress: true,
+  poweredByHeader: false, // Hide X-Powered-By header for security
 };
 
 export default nextConfig;
