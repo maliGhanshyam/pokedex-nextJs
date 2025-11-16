@@ -1,7 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
 import { getPokemonList } from "@/services/pokeapi";
-import { InfoChip } from "@/components";
 import { SearchParams } from "@/types/propsInterface";
 
 const PAGE_SIZE = 15;

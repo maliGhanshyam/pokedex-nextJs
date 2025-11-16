@@ -31,7 +31,7 @@ export default function SearchInput() {
     }, 500); // ⏳ debounce delay (ms)
 
     return () => clearTimeout(delayDebounce);
-  }, [query, pathname, router]);
+  }, [query, pathname, router, params]);
 
   return (
     <div className="flex items-center space-x-2">
