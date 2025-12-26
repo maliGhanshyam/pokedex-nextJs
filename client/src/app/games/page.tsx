@@ -132,79 +132,79 @@ export default function GamesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-100 via-pink-100 to-orange-100 p-8">
+    <div className="min-h-screen bg-gradient-to-br from-orange-100 to-yellow-200 p-4 sm:p-8">
       <div className="max-w-6xl mx-auto">
-        <h1 className="text-5xl font-bold text-center mb-4 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+        <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-center mb-4 text-gray-800">
           🎮 Pokémon Games & Tools
         </h1>
-        <p className="text-center text-gray-600 mb-12 text-lg">
+        <p className="text-center text-gray-600 mb-8 sm:mb-12 text-base sm:text-lg">
           Battle, compare, and analyze your favorite Pokémon!
         </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
           {/* Battle Card */}
-          <div className="bg-white rounded-2xl shadow-xl p-8 hover:shadow-2xl transition-all transform hover:scale-105">
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg sm:shadow-xl p-6 sm:p-8 hover:shadow-xl sm:hover:shadow-2xl transition-all transform hover:scale-105">
             <div className="text-center mb-6">
-              <div className="text-6xl mb-4">⚔️</div>
-              <h2 className="text-3xl font-bold text-gray-800 mb-2">Battle Simulator</h2>
-              <p className="text-gray-600">
+              <div className="text-5xl sm:text-6xl mb-4">⚔️</div>
+              <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">Battle Simulator</h2>
+              <p className="text-gray-600 text-sm sm:text-base">
                 Simulate epic battles between Pokémon with turn-based combat
               </p>
             </div>
             <button
               onClick={() => setShowBattleModal(true)}
-              className="w-full bg-gradient-to-r from-red-500 to-orange-500 text-white py-4 px-6 rounded-xl font-bold text-lg hover:from-red-600 hover:to-orange-600 transition-all transform hover:scale-105"
+              className="w-full bg-orange-500 text-white py-3 sm:py-4 px-6 rounded-lg sm:rounded-xl font-bold text-base sm:text-lg hover:bg-orange-600 transition-colors"
             >
               Start Battle
             </button>
           </div>
 
           {/* Compare Card */}
-          <div className="bg-white rounded-2xl shadow-xl p-8 hover:shadow-2xl transition-all transform hover:scale-105">
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg sm:shadow-xl p-6 sm:p-8 hover:shadow-xl sm:hover:shadow-2xl transition-all transform hover:scale-105">
             <div className="text-center mb-6">
-              <div className="text-6xl mb-4">⚖️</div>
-              <h2 className="text-3xl font-bold text-gray-800 mb-2">Compare Pokémon</h2>
-              <p className="text-gray-600">
+              <div className="text-5xl sm:text-6xl mb-4">⚖️</div>
+              <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">Compare Pokémon</h2>
+              <p className="text-gray-600 text-sm sm:text-base">
                 Compare stats, types, and battle probabilities between Pokémon
               </p>
             </div>
             <button
               onClick={() => setShowCompareModal(true)}
-              className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-4 px-6 rounded-xl font-bold text-lg hover:from-purple-600 hover:to-pink-600 transition-all transform hover:scale-105"
+              className="w-full bg-orange-500 text-white py-3 sm:py-4 px-6 rounded-lg sm:rounded-xl font-bold text-base sm:text-lg hover:bg-orange-600 transition-colors"
             >
               Compare Now
             </button>
           </div>
 
           {/* Team Analyzer Card */}
-          <div className="bg-white rounded-2xl shadow-xl p-8 hover:shadow-2xl transition-all transform hover:scale-105">
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg sm:shadow-xl p-6 sm:p-8 hover:shadow-xl sm:hover:shadow-2xl transition-all transform hover:scale-105">
             <div className="text-center mb-6">
-              <div className="text-6xl mb-4">👥</div>
-              <h2 className="text-3xl font-bold text-gray-800 mb-2">Team Analyzer</h2>
-              <p className="text-gray-600">
+              <div className="text-5xl sm:text-6xl mb-4">👥</div>
+              <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">Team Analyzer</h2>
+              <p className="text-gray-600 text-sm sm:text-base">
                 Coming Soon: Analyze your Pokémon team's strengths and weaknesses
               </p>
             </div>
             <button
               disabled
-              className="w-full bg-gray-400 text-white py-4 px-6 rounded-xl font-bold text-lg cursor-not-allowed"
+              className="w-full bg-gray-400 text-white py-3 sm:py-4 px-6 rounded-lg sm:rounded-xl font-bold text-base sm:text-lg cursor-not-allowed"
             >
               Coming Soon
             </button>
           </div>
 
           {/* Recommendations Card */}
-          <div className="bg-white rounded-2xl shadow-xl p-8 hover:shadow-2xl transition-all transform hover:scale-105">
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg sm:shadow-xl p-6 sm:p-8 hover:shadow-xl sm:hover:shadow-2xl transition-all transform hover:scale-105">
             <div className="text-center mb-6">
-              <div className="text-6xl mb-4">💡</div>
-              <h2 className="text-3xl font-bold text-gray-800 mb-2">Recommendations</h2>
-              <p className="text-gray-600">
+              <div className="text-5xl sm:text-6xl mb-4">💡</div>
+              <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">Recommendations</h2>
+              <p className="text-gray-600 text-sm sm:text-base">
                 Get personalized Pokémon recommendations based on your preferences
               </p>
             </div>
             <button
               disabled
-              className="w-full bg-gray-400 text-white py-4 px-6 rounded-xl font-bold text-lg cursor-not-allowed"
+              className="w-full bg-gray-400 text-white py-3 sm:py-4 px-6 rounded-lg sm:rounded-xl font-bold text-base sm:text-lg cursor-not-allowed"
             >
               Coming Soon
             </button>
