@@ -13,7 +13,9 @@ export interface PokemonListResponse {
 export interface PokemonDetails {
   id: number;
   name: string;
-  sprites: {
+  image?: string;
+  imageOfficial?: string;
+  sprites?: {
     front_default: string;
     other: {
       ["official-artwork"]: {
@@ -23,11 +25,11 @@ export interface PokemonDetails {
     };
   };
   types: { type: { name: string } }[];
-  height: number;
-  weight: number;
-  abilities: { ability: { name: string } }[];
-  species: { name: string };
-  stats: {
+  height?: number;
+  weight?: number;
+  abilities?: { ability: { name: string } }[];
+  species?: { name: string };
+  stats?: {
     base_stat: number;
     effort: number;
     stat: { name: string };

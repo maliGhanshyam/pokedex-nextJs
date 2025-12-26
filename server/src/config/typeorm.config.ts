@@ -5,6 +5,7 @@ import { User } from '../entities/user.entity';
 import { Pokemon } from '../entities/pokemon.entity';
 import { FavoritePokemon } from '../entities/favorite-pokemon.entity';
 import { Contact } from '../entities/contact.entity';
+import { Battle } from '../entities/battle.entity';
 
 config();
 
@@ -17,7 +18,7 @@ export const typeormConfig: DataSourceOptions = {
   username: configService.get('DB_USERNAME', 'postgres'),
   password: configService.get('DB_PASSWORD', 'postgres'),
   database: configService.get('DB_DATABASE', 'pokedex'),
-  entities: [User, Pokemon, FavoritePokemon, Contact],
+  entities: [User, Pokemon, FavoritePokemon, Contact, Battle],
   synchronize: configService.get('NODE_ENV') === 'development',
   logging: configService.get('NODE_ENV') === 'development',
   migrations: ['dist/migrations/*.js'],

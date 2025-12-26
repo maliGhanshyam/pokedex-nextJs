@@ -43,6 +43,11 @@ const Navbar = () => {
                 Contact Us
               </Link>
             </li>
+            <li>
+              <Link href="/games" className="hover:text-yellow-400 transition">
+                🎮 Games
+              </Link>
+            </li>
             {isAuthenticated && (
               <li>
                 <Link
