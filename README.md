@@ -1,36 +1,81 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Pokedex Application
+
+A full-stack Pokémon application with Next.js frontend and NestJS backend.
+
+## Project Structure
+
+```
+.
+├── client/          # Next.js frontend application
+└── server/          # NestJS backend application
+```
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js (v18 or higher)
+- PostgreSQL (v12 or higher)
+- npm or yarn
+
+### Installation
+
+1. Install root dependencies:
+```bash
+npm install
+```
+
+2. Install all dependencies (root, client, and server):
+```bash
+npm run install:all
+```
+
+3. Set up the database:
+   - Create a PostgreSQL database named `pokedex`
+   - Configure database credentials in `server/.env` (copy from `server/env.example`)
+
+4. Configure environment variables:
+   - Backend: Copy `server/env.example` to `server/.env` and update values
+
+### Development
+
+Run both frontend and backend together:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+This will start:
+- **Frontend**: [http://localhost:3000](http://localhost:3000)
+- **Backend**: [http://localhost:3001](http://localhost:3001)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Running Individually
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+To run only the frontend:
+```bash
+cd client
+npm run dev
+```
+
+To run only the backend:
+```bash
+cd server
+npm run start:dev
+```
+
+### Build
+
+Build both applications:
+```bash
+npm run build
+```
+
+## Documentation
+
+- Frontend documentation: See `client/` folder
+- Backend documentation: See `server/README.md`
 
 ## Learn More
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- [Next.js Documentation](https://nextjs.org/docs)
+- [NestJS Documentation](https://docs.nestjs.com)
