@@ -55,7 +55,7 @@ export class PokemonService {
       for (const table of tablesToCheck) {
         try {
           const result = await this.dataSource.query(
-            `SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = $1`,
+            `SELECT 1 FROM information_schema.tables WHERE table_name = $1`,
             [table]
           );
           if (result && result.length > 0) {
@@ -77,23 +77,26 @@ export class PokemonService {
         return;
       }
       
+      // Disable foreign key checks temporarily (PostgreSQL)
+      await this.dataSource.query('SET session_replication_role = replica;');
+      
       // Clear tables in order (respecting foreign key constraints)
       // Order matters: clear child tables first, then parent tables
-      // Use CASCADE to automatically handle foreign key dependencies
       const tablesToClear = ['favorite_pokemon', 'battles', 'contacts', 'pokemon', 'users'];
       for (const table of tablesToClear) {
         if (existingTables.includes(table)) {
           try {
-            // Use CASCADE to automatically handle foreign key constraints
             await this.dataSource.query(`TRUNCATE TABLE ${table} CASCADE;`);
             this.logger.debug(`Cleared table: ${table}`);
           } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
-            // Log but continue with other tables
             this.logger.warn(`Failed to clear table ${table}: ${errorMessage}`);
           }
         }
       }
+      
+      // Re-enable foreign key checks
+      await this.dataSource.query('SET session_replication_role = DEFAULT;');
       
       this.logger.log('All database tables cleared successfully.');
     } catch (error) {
@@ -118,13 +121,25 @@ export class PokemonService {
         order: { id: 'ASC' },
       });
 
-      const results = pokemon.map((p) => ({
-        name: p.name,
-        url: `${this.pokeApiBaseUrl}/pokemon/${p.name}`,
-        id: p.id.toString(),
-        image: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${p.id}.png`,
-        imageOfficial: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${p.id}.png`,
-      }));
+      const results = pokemon.map((p) => {
+        // Use stored sprite URLs from database - these contain the correct PokeAPI URLs
+        // The sprites field is populated during sync with data from PokeAPI
+        const officialArtworkUrl = p.sprites?.other?.['official-artwork']?.front_default || 
+          p.sprite || 
+          '';
+        
+        const defaultSpriteUrl = p.sprites?.front_default || 
+          p.sprite || 
+          '';
+
+        return {
+          name: p.name,
+          url: `${this.pokeApiBaseUrl}/pokemon/${p.name}`,
+          id: p.id.toString(),
+          image: defaultSpriteUrl,
+          imageOfficial: officialArtworkUrl,
+        };
+      });
 
       const totalPages = Math.ceil(total / limit);
       const currentPage = Math.floor(offset / limit) + 1;
