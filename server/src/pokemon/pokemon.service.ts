@@ -114,62 +114,95 @@ export class PokemonService {
   async findAll(query: PaginationQueryDto) {
     const { limit = 20, offset = 0 } = query;
 
-    const [pokemon, total] = await this.pokemonRepository.findAndCount({
-      take: limit,
-      skip: offset,
-      order: { id: 'ASC' },
-    });
+    try {
+      const [pokemon, total] = await this.pokemonRepository.findAndCount({
+        take: limit,
+        skip: offset,
+        order: { id: 'ASC' },
+      });
 
-    const results = pokemon.map((p) => ({
-      name: p.name,
-      url: `${this.pokeApiBaseUrl}/pokemon/${p.name}`,
-      id: p.id.toString(),
-      image: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${p.id}.png`,
-      imageOfficial: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${p.id}.png`,
-    }));
+      const results = pokemon.map((p) => ({
+        name: p.name,
+        url: `${this.pokeApiBaseUrl}/pokemon/${p.name}`,
+        id: p.id.toString(),
+        image: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${p.id}.png`,
+        imageOfficial: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${p.id}.png`,
+      }));
 
-    const totalPages = Math.ceil(total / limit);
-    const currentPage = Math.floor(offset / limit) + 1;
+      const totalPages = Math.ceil(total / limit);
+      const currentPage = Math.floor(offset / limit) + 1;
 
-    return {
-      count: total,
-      next:
-        currentPage < totalPages
-          ? `/pokemon?limit=${limit}&offset=${offset + limit}`
-          : null,
-      previous:
-        offset > 0
-          ? `/pokemon?limit=${limit}&offset=${Math.max(0, offset - limit)}`
-          : null,
-      results,
-    };
+      return {
+        count: total,
+        next:
+          currentPage < totalPages
+            ? `/pokemon?limit=${limit}&offset=${offset + limit}`
+            : null,
+        previous:
+          offset > 0
+            ? `/pokemon?limit=${limit}&offset=${Math.max(0, offset - limit)}`
+            : null,
+        results,
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('relation') && errorMessage.includes('does not exist')) {
+        this.logger.warn('Pokemon table does not exist yet. Returning empty results.');
+        // Return empty result set if table doesn't exist
+        return {
+          count: 0,
+          next: null,
+          previous: null,
+          results: [],
+        };
+      }
+      throw error;
+    }
   }
 
   async findOne(name: string): Promise<PokemonDetailsDto> {
-    const pokemon = await this.pokemonRepository.findOne({
-      where: { name: name.toLowerCase() },
-    });
+    try {
+      const pokemon = await this.pokemonRepository.findOne({
+        where: { name: name.toLowerCase() },
+      });
 
-    if (!pokemon) {
-      throw new NotFoundException(`Pokemon with name ${name} not found`);
+      if (!pokemon) {
+        throw new NotFoundException(`Pokemon with name ${name} not found`);
+      }
+
+      return this.mapToPokemonDetailsDto(pokemon);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('relation') && errorMessage.includes('does not exist')) {
+        this.logger.warn('Pokemon table does not exist yet.');
+        throw new NotFoundException(`Pokemon with name ${name} not found`);
+      }
+      throw error;
     }
-
-    return this.mapToPokemonDetailsDto(pokemon);
   }
 
   async findAllTypes(): Promise<string[]> {
-    const pokemon = await this.pokemonRepository.find({
-      select: ['types'],
-    });
-
-    const typeSet = new Set<string>();
-    pokemon.forEach((p) => {
-      p.types.forEach((type) => {
-        typeSet.add(type.type.name);
+    try {
+      const pokemon = await this.pokemonRepository.find({
+        select: ['types'],
       });
-    });
 
-    return Array.from(typeSet).sort();
+      const typeSet = new Set<string>();
+      pokemon.forEach((p) => {
+        p.types.forEach((type) => {
+          typeSet.add(type.type.name);
+        });
+      });
+
+      return Array.from(typeSet).sort();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('relation') && errorMessage.includes('does not exist')) {
+        this.logger.warn('Pokemon table does not exist yet. Returning empty types array.');
+        return [];
+      }
+      throw error;
+    }
   }
 
   async syncPokemon(): Promise<{ synced: number; errors: number }> {
