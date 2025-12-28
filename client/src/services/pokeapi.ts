@@ -6,10 +6,12 @@ import type {
 } from "@/types/pokemon";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+// Increase timeout for Render.com free tier which can take 30-60 seconds to wake up
+const API_TIMEOUT = parseInt(process.env.NEXT_PUBLIC_API_TIMEOUT || "60000", 10);
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  timeout: API_TIMEOUT,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -58,7 +60,11 @@ export const getPokemonList = async (
     // Handle axios errors properly
     if (axios.isAxiosError(err)) {
       if (err.code === 'ECONNREFUSED' || err.code === 'ERR_NETWORK' || err.code === 'ECONNABORTED') {
-        errorMessage = "Cannot connect to backend server. Please ensure the backend is running on http://localhost:3001";
+        if (err.code === 'ECONNABORTED') {
+          errorMessage = `Request timed out after ${API_TIMEOUT}ms. The backend server at ${API_BASE_URL} may be starting up (Render.com free tier can take 30-60 seconds to wake up). Please try again in a moment.`;
+        } else {
+          errorMessage = `Cannot connect to backend server. Please ensure the backend is running on ${API_BASE_URL}`;
+        }
       } else if (err.response) {
         // Server responded with error status
         const status = err.response.status;
@@ -69,7 +75,7 @@ export const getPokemonList = async (
         }
       } else if (err.request) {
         // Request was made but no response received
-        errorMessage = "No response from backend server. Please ensure the backend is running on http://localhost:3001";
+        errorMessage = `No response from backend server. Please ensure the backend is running on ${API_BASE_URL}`;
       } else {
         errorMessage = err.message || "An error occurred while fetching Pokémon list.";
       }
