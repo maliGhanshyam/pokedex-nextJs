@@ -34,7 +34,7 @@ import { Battle } from './entities/battle.entity';
         password: configService.get('DB_PASSWORD', 'postgres'),
         database: configService.get('DB_DATABASE', 'pokedex'),
         entities: [User, Pokemon, FavoritePokemon, Contact, Battle],
-        synchronize: configService.get('NODE_ENV') === 'development',
+        synchronize: configService.get('DB_SYNCHRONIZE') === 'true' || configService.get('NODE_ENV') === 'development',
         logging: configService.get('NODE_ENV') === 'development',
       }),
       inject: [ConfigService],
