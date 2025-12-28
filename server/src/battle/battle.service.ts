@@ -23,16 +23,21 @@ export class BattleService {
     userId: string,
     battleDto: BattleRequestDto,
   ): Promise<BattleResponseDto> {
-    const pokemon1 = await this.pokemonRepository.findOne({
-      where: { id: battleDto.pokemon1Id },
-    });
-    const pokemon2 = await this.pokemonRepository.findOne({
-      where: { id: battleDto.pokemon2Id },
-    });
+    try {
+      const pokemon1 = await this.pokemonRepository.findOne({
+        where: { id: battleDto.pokemon1Id },
+      });
+      const pokemon2 = await this.pokemonRepository.findOne({
+        where: { id: battleDto.pokemon2Id },
+      });
 
-    if (!pokemon1 || !pokemon2) {
-      throw new NotFoundException('One or both Pokémon not found');
-    }
+      if (!pokemon1) {
+        throw new NotFoundException(`Pokémon with ID ${battleDto.pokemon1Id} not found`);
+      }
+      
+      if (!pokemon2) {
+        throw new NotFoundException(`Pokémon with ID ${battleDto.pokemon2Id} not found`);
+      }
 
     const stats1 = this.extractStats(pokemon1);
     const stats2 = this.extractStats(pokemon2);
@@ -93,26 +98,38 @@ export class BattleService {
     const winner = hp1 > 0 ? pokemon1 : pokemon2;
     const loser = hp1 > 0 ? pokemon2 : pokemon1;
 
-    // Save battle to database
-    await this.battleRepository.save({
-      userId,
-      pokemon1Id: pokemon1.id,
-      pokemon2Id: pokemon2.id,
-      winnerId: winner.id,
-      battleLog,
-      turns: turn,
-    });
+      // Save battle to database
+      try {
+        await this.battleRepository.save({
+          userId,
+          pokemon1Id: pokemon1.id,
+          pokemon2Id: pokemon2.id,
+          winnerId: winner.id,
+          battleLog,
+          turns: turn,
+        });
+      } catch (dbError) {
+        // Log database error but don't fail the battle simulation
+        console.error('Failed to save battle to database:', dbError);
+      }
 
-    return {
-      winnerId: winner.id,
-      winnerName: winner.name,
-      loserId: loser.id,
-      loserName: loser.name,
-      turns: turn,
-      battleLog,
-      pokemon1Stats: stats1,
-      pokemon2Stats: stats2,
-    };
+      return {
+        winnerId: winner.id,
+        winnerName: winner.name,
+        loserId: loser.id,
+        loserName: loser.name,
+        turns: turn,
+        battleLog,
+        pokemon1Stats: stats1,
+        pokemon2Stats: stats2,
+      };
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      // Re-throw as a more user-friendly error
+      throw new Error(`Failed to simulate battle: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
   private extractStats(pokemon: Pokemon) {
@@ -131,12 +148,16 @@ export class BattleService {
   }
 
   async getBattleHistory(userId: string, limit = 10) {
-    return this.battleRepository.find({
-      where: { userId },
-      relations: ['pokemon1', 'pokemon2', 'winner'],
-      order: { createdAt: 'DESC' },
-      take: limit,
-    });
+    try {
+      return await this.battleRepository.find({
+        where: { userId },
+        relations: ['pokemon1', 'pokemon2', 'winner'],
+        order: { createdAt: 'DESC' },
+        take: limit,
+      });
+    } catch (error) {
+      throw new Error(`Failed to retrieve battle history: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 }
 

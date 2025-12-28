@@ -28,6 +28,7 @@ export default function CompareModal({
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingPokemon1, setIsLoadingPokemon1] = useState(false);
   const [isLoadingPokemon2, setIsLoadingPokemon2] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Reset state when modal closes
   useEffect(() => {
@@ -36,6 +37,7 @@ export default function CompareModal({
       setIsLoading(false);
       setIsLoadingPokemon1(false);
       setIsLoadingPokemon2(false);
+      setError(null);
     }
   }, [isOpen]);
 
@@ -56,6 +58,7 @@ export default function CompareModal({
     if (!pokemon1 || !pokemon2) return;
 
     setIsLoading(true);
+    setError(null);
     try {
       const compareRequest: CompareRequest = {
         pokemon1Id: pokemon1.id,
@@ -65,7 +68,10 @@ export default function CompareModal({
       setCompareResult(result);
     } catch (error) {
       console.error('Compare error:', error);
-      alert('Failed to compare Pokémon');
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : 'Failed to compare Pokémon. Please try again.';
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -93,6 +99,20 @@ export default function CompareModal({
         </div>
 
         <div className="p-6">
+          {error && (
+            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <div className="flex items-center">
+                <span className="text-red-600 mr-2">⚠️</span>
+                <p className="text-red-800 text-sm">{error}</p>
+              </div>
+              <button
+                onClick={() => setError(null)}
+                className="mt-2 text-red-600 hover:text-red-800 text-xs underline"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
           {!compareResult ? (
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

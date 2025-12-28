@@ -20,12 +20,19 @@ export default function FavoritesPage() {
     }
   }, [isAuthenticated]);
 
+  const [error, setError] = useState<string | null>(null);
+
   const loadFavorites = async () => {
     try {
+      setError(null);
       const data = await favoritesApi.getFavorites();
       setFavorites(data);
     } catch (error) {
       console.error('Error loading favorites:', error);
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : 'Failed to load favorites. Please try again.';
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -58,6 +65,32 @@ export default function FavoritesPage() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
           <p className="mt-4 text-gray-700">Loading favorites...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-orange-100 to-yellow-200 flex items-center justify-center px-4">
+        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
+          <div className="text-6xl mb-4">⚠️</div>
+          <h1 className="text-2xl font-bold text-gray-800 mb-4">
+            Error Loading Favorites
+          </h1>
+          <p className="text-gray-600 mb-6">{error}</p>
+          <button
+            onClick={loadFavorites}
+            className="inline-block px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors mr-2"
+          >
+            Try Again
+          </button>
+          <Link
+            href="/"
+            className="inline-block px-6 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors"
+          >
+            Go to Home
+          </Link>
         </div>
       </div>
     );

@@ -16,16 +16,29 @@ export class TeamsService {
   ) {}
 
   async evaluateTeam(teamDto: TeamEvaluateDto): Promise<TeamResponseDto> {
-    const pokemonList = await Promise.all(
-      teamDto.pokemonIds.map((id) =>
-        this.pokemonRepository.findOne({ where: { id } }),
-      ),
-    );
+    try {
+      if (!teamDto.pokemonIds || teamDto.pokemonIds.length === 0) {
+        throw new NotFoundException('No Pokémon IDs provided');
+      }
 
-    const missingPokemon = pokemonList.filter((p) => !p);
-    if (missingPokemon.length > 0) {
-      throw new NotFoundException('One or more Pokémon not found');
-    }
+      const pokemonList = await Promise.all(
+        teamDto.pokemonIds.map((id) =>
+          this.pokemonRepository.findOne({ where: { id } }),
+        ),
+      );
+
+      const missingIndices: number[] = [];
+      pokemonList.forEach((p, index) => {
+        if (!p) {
+          missingIndices.push(teamDto.pokemonIds[index]);
+        }
+      });
+
+      if (missingIndices.length > 0) {
+        throw new NotFoundException(
+          `Pokémon with IDs ${missingIndices.join(', ')} not found`
+        );
+      }
 
     const teamData = pokemonList.map((p) => ({
       id: p!.id,
@@ -81,6 +94,12 @@ export class TeamsService {
       overallScore,
       recommendations,
     };
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new Error(`Failed to evaluate team: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
   private calculateWeaknesses(

@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { ConfigService } from '@nestjs/config';
+import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 
 async function bootstrap() {
   try {
@@ -24,8 +25,28 @@ async function bootstrap() {
         transformOptions: {
           enableImplicitConversion: true,
         },
+        exceptionFactory: (errors) => {
+          // Format validation errors for better client-side handling
+          const messages = errors.map((error) => {
+            if (error.constraints) {
+              return Object.values(error.constraints).join(', ');
+            }
+            return error.property;
+          });
+          return new HttpException(
+            {
+              statusCode: 400,
+              message: messages.length > 0 ? messages : 'Validation failed',
+              error: 'Bad Request',
+            },
+            HttpStatus.BAD_REQUEST,
+          );
+        },
       }),
     );
+
+    // Global exception filter for consistent error handling
+    app.useGlobalFilters(new AllExceptionsFilter());
 
     await app.listen(port);
     console.log(`Application is running on: http://localhost:${port}`);

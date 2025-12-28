@@ -2,6 +2,7 @@ import Footer from "@/components/Footer";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import { Providers } from "@/components/Providers";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 export const metadata = {
   title: "PokeDex",
@@ -16,11 +17,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <Providers>
-          <Navbar />
-          {children}
-          <Footer />
-        </Providers>
+        <ErrorBoundary>
+          <Providers>
+            <Navbar />
+            {children}
+            <Footer />
+          </Providers>
+        </ErrorBoundary>
       </body>
     </html>
   );

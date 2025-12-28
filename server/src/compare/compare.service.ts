@@ -21,16 +21,21 @@ export class CompareService {
   async comparePokemon(
     compareDto: CompareRequestDto,
   ): Promise<CompareResponseDto> {
-    const pokemon1 = await this.pokemonRepository.findOne({
-      where: { id: compareDto.pokemon1Id },
-    });
-    const pokemon2 = await this.pokemonRepository.findOne({
-      where: { id: compareDto.pokemon2Id },
-    });
+    try {
+      const pokemon1 = await this.pokemonRepository.findOne({
+        where: { id: compareDto.pokemon1Id },
+      });
+      const pokemon2 = await this.pokemonRepository.findOne({
+        where: { id: compareDto.pokemon2Id },
+      });
 
-    if (!pokemon1 || !pokemon2) {
-      throw new NotFoundException('One or both Pokémon not found');
-    }
+      if (!pokemon1) {
+        throw new NotFoundException(`Pokémon with ID ${compareDto.pokemon1Id} not found`);
+      }
+      
+      if (!pokemon2) {
+        throw new NotFoundException(`Pokémon with ID ${compareDto.pokemon2Id} not found`);
+      }
 
     const stats1 = this.extractStats(pokemon1);
     const stats2 = this.extractStats(pokemon2);
@@ -83,6 +88,12 @@ export class CompareService {
         pokemon2: winProbability2,
       },
     };
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new Error(`Failed to compare Pokémon: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
   private extractStats(pokemon: Pokemon) {

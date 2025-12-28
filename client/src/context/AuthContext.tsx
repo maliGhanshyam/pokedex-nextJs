@@ -61,19 +61,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string) => {
-    const response: AuthResponse = await authApi.login({ email, password });
-    localStorage.setItem('accessToken', response.accessToken);
-    localStorage.setItem('refreshToken', response.refreshToken);
-    localStorage.setItem('user', JSON.stringify(response.user));
-    setUser(response.user);
+    try {
+      const response: AuthResponse = await authApi.login({ email, password });
+      localStorage.setItem('accessToken', response.accessToken);
+      localStorage.setItem('refreshToken', response.refreshToken);
+      localStorage.setItem('user', JSON.stringify(response.user));
+      setUser(response.user);
+    } catch (error) {
+      // Re-throw with user-friendly message (already handled in authApi)
+      throw error;
+    }
   };
 
   const signup = async (email: string, password: string, name?: string, username?: string) => {
-    const response: AuthResponse = await authApi.signup({ email, password, name, username });
-    localStorage.setItem('accessToken', response.accessToken);
-    localStorage.setItem('refreshToken', response.refreshToken);
-    localStorage.setItem('user', JSON.stringify(response.user));
-    setUser(response.user);
+    try {
+      const response: AuthResponse = await authApi.signup({ email, password, name, username });
+      localStorage.setItem('accessToken', response.accessToken);
+      localStorage.setItem('refreshToken', response.refreshToken);
+      localStorage.setItem('user', JSON.stringify(response.user));
+      setUser(response.user);
+    } catch (error) {
+      // Re-throw with user-friendly message (already handled in authApi)
+      throw error;
+    }
   };
 
   const logout = async () => {

@@ -30,6 +30,7 @@ export default function BattleModal({
   const [isAnimating, setIsAnimating] = useState(false);
   const [isLoadingPokemon1, setIsLoadingPokemon1] = useState(false);
   const [isLoadingPokemon2, setIsLoadingPokemon2] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Reset state when modal closes
   useEffect(() => {
@@ -40,6 +41,7 @@ export default function BattleModal({
       setIsAnimating(false);
       setIsLoadingPokemon1(false);
       setIsLoadingPokemon2(false);
+      setError(null);
     }
   }, [isOpen]);
 
@@ -73,6 +75,7 @@ export default function BattleModal({
     setIsLoading(true);
     setBattleResult(null);
     setCurrentTurn(0);
+    setError(null);
 
     try {
       const battleRequest: BattleRequest = {
@@ -83,7 +86,10 @@ export default function BattleModal({
       setBattleResult(result);
     } catch (error) {
       console.error('Battle error:', error);
-      alert('Failed to simulate battle');
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : 'Failed to simulate battle. Please try again.';
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -114,6 +120,20 @@ export default function BattleModal({
         </div>
 
         <div className="p-6">
+          {error && (
+            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <div className="flex items-center">
+                <span className="text-red-600 mr-2">⚠️</span>
+                <p className="text-red-800 text-sm">{error}</p>
+              </div>
+              <button
+                onClick={() => setError(null)}
+                className="mt-2 text-red-600 hover:text-red-800 text-xs underline"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
           {!battleResult ? (
             <div className="space-y-6">
               {/* Pokemon Selection */}
