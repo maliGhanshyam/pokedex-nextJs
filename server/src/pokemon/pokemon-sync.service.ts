@@ -16,13 +16,17 @@ export class PokemonSyncService implements OnModuleInit {
   constructor(private pokemonService: PokemonService) {}
 
   async onModuleInit() {
-    this.logger.log('Application started, checking if Pokémon data exists...');
+    this.logger.log('Application started, initializing database...');
     
     // Wait a bit to ensure database connection and schema synchronization is complete
     // This is important when DB_SYNCHRONIZE=true is enabled
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise(resolve => setTimeout(resolve, 3000));
     
     try {
+      // Clear all tables at startup
+      await this.pokemonService.clearAllTables();
+      
+      // Check if tables exist and if there's data
       const hasData = await this.pokemonService.hasData();
       if (!hasData) {
         this.logger.log('No Pokémon data found in database, triggering initial sync...');
@@ -51,7 +55,7 @@ export class PokemonSyncService implements OnModuleInit {
           '   Once tables are created, the sync will run automatically on next startup.',
         );
       } else {
-        this.logger.error(`Startup sync check failed: ${errorMessage}`);
+        this.logger.error(`Startup initialization failed: ${errorMessage}`);
       }
     }
   }

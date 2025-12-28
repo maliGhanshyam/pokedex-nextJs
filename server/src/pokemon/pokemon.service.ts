@@ -1,6 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
@@ -21,6 +21,8 @@ export class PokemonService {
     private pokemonRepository: Repository<Pokemon>,
     private httpService: HttpService,
     private configService: ConfigService,
+    @InjectDataSource()
+    private dataSource: DataSource,
   ) {
     this.pokeApiBaseUrl =
       this.configService.get<string>('POKEAPI_BASE_URL') ||
@@ -39,6 +41,73 @@ export class PokemonService {
       }
       // Re-throw other errors
       throw error;
+    }
+  }
+
+  async clearAllTables(): Promise<void> {
+    try {
+      this.logger.log('Clearing all database tables...');
+      
+      // Check if tables exist first (using information_schema)
+      const tablesToCheck = ['favorite_pokemon', 'battles', 'contacts', 'pokemon', 'users'];
+      const existingTables: string[] = [];
+      
+      for (const table of tablesToCheck) {
+        try {
+          const result = await this.dataSource.query(
+            `SELECT 1 FROM information_schema.tables WHERE table_name = $1`,
+            [table]
+          );
+          if (result && result.length > 0) {
+            existingTables.push(table);
+          }
+        } catch (error) {
+          // If information_schema query fails, try direct query
+          try {
+            await this.dataSource.query(`SELECT 1 FROM ${table} LIMIT 1`);
+            existingTables.push(table);
+          } catch (err) {
+            // Table doesn't exist, skip it
+          }
+        }
+      }
+      
+      if (existingTables.length === 0) {
+        this.logger.log('No tables exist yet, skipping clear operation.');
+        return;
+      }
+      
+      // Disable foreign key checks temporarily (PostgreSQL)
+      await this.dataSource.query('SET session_replication_role = replica;');
+      
+      // Clear tables in order (respecting foreign key constraints)
+      // Order matters: clear child tables first, then parent tables
+      const tablesToClear = ['favorite_pokemon', 'battles', 'contacts', 'pokemon', 'users'];
+      for (const table of tablesToClear) {
+        if (existingTables.includes(table)) {
+          try {
+            await this.dataSource.query(`TRUNCATE TABLE ${table} CASCADE;`);
+            this.logger.debug(`Cleared table: ${table}`);
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            this.logger.warn(`Failed to clear table ${table}: ${errorMessage}`);
+          }
+        }
+      }
+      
+      // Re-enable foreign key checks
+      await this.dataSource.query('SET session_replication_role = DEFAULT;');
+      
+      this.logger.log('All database tables cleared successfully.');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      // If tables don't exist yet, that's okay - they'll be created by synchronize
+      if (errorMessage.includes('relation') && errorMessage.includes('does not exist')) {
+        this.logger.log('Tables do not exist yet, skipping clear operation.');
+        return;
+      }
+      // For other errors, log but don't throw (non-critical operation)
+      this.logger.warn(`Error clearing tables: ${errorMessage}`);
     }
   }
 
@@ -105,6 +174,19 @@ export class PokemonService {
 
   async syncPokemon(): Promise<{ synced: number; errors: number }> {
     this.logger.log('Starting Pokémon sync job...');
+    
+    // First, verify that the pokemon table exists
+    try {
+      await this.pokemonRepository.count();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('relation') && errorMessage.includes('does not exist')) {
+        this.logger.error('Cannot sync: pokemon table does not exist. Please enable DB_SYNCHRONIZE=true and redeploy.');
+        throw new Error('Database tables do not exist. Please enable DB_SYNCHRONIZE=true in environment variables.');
+      }
+      throw error;
+    }
+    
     let synced = 0;
     let errors = 0;
     const batchSize = 20;
@@ -126,12 +208,31 @@ export class PokemonService {
             try {
               await this.syncSinglePokemon(pokemonResult.url);
               synced++;
-              this.logger.debug(`Synced: ${pokemonResult.name}`);
+              // Log progress every 50 pokemon
+              if (synced % 50 === 0) {
+                this.logger.log(`Synced ${synced} Pokémon so far...`);
+              }
             } catch (error) {
               errors++;
+              const errorMessage = error instanceof Error ? error.message : String(error);
+              
+              // If table doesn't exist, stop syncing immediately
+              if (errorMessage.includes('relation') && errorMessage.includes('does not exist')) {
+                this.logger.error(`Cannot continue sync: pokemon table does not exist. Stopped at ${synced} Pokémon.`);
+                hasMore = false;
+                break;
+              }
+              
               this.logger.error(
-                `Error syncing ${pokemonResult.name}: ${error instanceof Error ? error.message : String(error)}`,
+                `Error syncing ${pokemonResult.name}: ${errorMessage}`,
               );
+              
+              // Stop if too many errors occur (more than 10 consecutive errors)
+              if (errors > 10 && synced === 0) {
+                this.logger.error('Too many errors, stopping sync.');
+                hasMore = false;
+                break;
+              }
             }
           }
 
@@ -141,8 +242,9 @@ export class PokemonService {
             offset += batchSize;
           }
         } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
           this.logger.error(
-            `Error fetching Pokémon list at offset ${offset}: ${error instanceof Error ? error.message : String(error)}`,
+            `Error fetching Pokémon list at offset ${offset}: ${errorMessage}`,
           );
           errors++;
           hasMore = false;
