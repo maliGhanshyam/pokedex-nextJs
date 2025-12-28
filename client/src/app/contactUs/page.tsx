@@ -1,8 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useAuth } from "@/context/AuthContext";
+import LoginModal from "@/components/LoginModal";
 
 export default function ContactUsPage() {
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const [showLoginModal, setShowLoginModal] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -16,6 +20,18 @@ export default function ContactUsPage() {
   );
   const [errorMessage, setErrorMessage] = useState<string>("");
 
+  // Listen for global login modal trigger events
+  useEffect(() => {
+    const handleShowLoginModal = () => {
+      setShowLoginModal(true);
+    };
+
+    window.addEventListener('showLoginModal', handleShowLoginModal);
+    return () => {
+      window.removeEventListener('showLoginModal', handleShowLoginModal);
+    };
+  }, []);
+
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
@@ -27,6 +43,15 @@ export default function ContactUsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Check if user is authenticated
+    if (!isAuthenticated) {
+      setShowLoginModal(true);
+      setSubmitStatus("error");
+      setErrorMessage("Please log in to send a message.");
+      return;
+    }
+
     setIsSubmitting(true);
     setSubmitStatus(null);
 
@@ -159,6 +184,21 @@ export default function ContactUsPage() {
               Send us a Message
             </h2>
 
+            {!isAuthenticated && !authLoading && (
+              <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-yellow-800 text-sm mb-2">
+                  <strong>Login Required:</strong> You must be logged in to send a message.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setShowLoginModal(true)}
+                  className="text-sm text-orange-600 hover:text-orange-700 font-semibold underline"
+                >
+                  Click here to log in
+                </button>
+              </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label
@@ -250,10 +290,10 @@ export default function ContactUsPage() {
 
               <button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isSubmitting || !isAuthenticated || authLoading}
                 className="w-full px-6 py-3 bg-gray-800 text-white font-semibold rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isSubmitting ? "Sending..." : "Send Message"}
+                {isSubmitting ? "Sending..." : !isAuthenticated ? "Login to Send Message" : "Send Message"}
               </button>
             </form>
           </div>
@@ -297,12 +337,24 @@ export default function ContactUsPage() {
                 Is PokéDex free to use?
               </h3>
               <p className="text-gray-600 text-sm">
-                Absolutely! PokéDex is completely free to use. No registration or
-                payment required.
+                Absolutely! PokéDex is completely free to use. Login is required to send messages through the contact form.
               </p>
             </div>
           </div>
         </div>
+
+        {/* Login Modal */}
+        <LoginModal
+          isOpen={showLoginModal}
+          onClose={() => {
+            setShowLoginModal(false);
+            // Clear error message when modal closes if user successfully logs in
+            if (isAuthenticated) {
+              setSubmitStatus(null);
+              setErrorMessage("");
+            }
+          }}
+        />
       </div>
     </div>
   );
