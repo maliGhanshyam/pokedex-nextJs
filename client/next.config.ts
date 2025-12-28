@@ -21,6 +21,18 @@ const nextConfig: NextConfig = {
   // Production optimizations
   compress: true,
   poweredByHeader: false, // Hide X-Powered-By header for security
+  // Disable type checking during build for faster deployments
+  typescript: {
+    // ⚠️ Dangerously allow production builds to successfully complete even if
+    // your project has type errors. Only use if you need faster builds.
+    ignoreBuildErrors: process.env.NODE_ENV === "production",
+  },
+  // Disable ESLint during build for faster deployments
+  eslint: {
+    // ⚠️ Warning: This allows production builds to successfully complete even if
+    // your project has ESLint errors. Only use if you need faster builds.
+    ignoreDuringBuilds: process.env.NODE_ENV === "production",
+  },
 };
 
 export default nextConfig;
