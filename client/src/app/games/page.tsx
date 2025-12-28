@@ -1,12 +1,60 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { useAuth } from '@/context/AuthContext';
+import { useRouter } from 'next/navigation';
 import BattleModal from '@/components/BattleModal';
 import CompareModal from '@/components/CompareModal';
 import PokemonSelectorModal from '@/components/PokemonSelectorModal';
 import { PokemonDetails } from '@/types/pokemon';
 
 export default function GamesPage() {
+  const { isAuthenticated, isLoading } = useAuth();
+  const router = useRouter();
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      // Trigger login modal via custom event
+      window.dispatchEvent(new CustomEvent('showLoginModal'));
+      // Optionally redirect to home page
+      router.push('/');
+    }
+  }, [isAuthenticated, isLoading, router]);
+
+  // Show loading state while checking auth
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-orange-100 to-yellow-200 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
+          <p className="mt-4 text-gray-700">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show login required message if not authenticated
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-orange-100 to-yellow-200 flex items-center justify-center px-4">
+        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
+          <h1 className="text-2xl font-bold text-gray-800 mb-4">
+            Login Required
+          </h1>
+          <p className="text-gray-600 mb-6">
+            Please log in to access Pokémon games and battle features.
+          </p>
+          <button
+            onClick={() => router.push('/')}
+            className="inline-block px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+          >
+            Go to Home
+          </button>
+        </div>
+      </div>
+    );
+  }
   const [showBattleModal, setShowBattleModal] = useState(false);
   const [showCompareModal, setShowCompareModal] = useState(false);
   const [showPokemonSelector, setShowPokemonSelector] = useState(false);

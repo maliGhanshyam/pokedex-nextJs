@@ -20,12 +20,13 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Handle token refresh on 401
+// Handle token refresh on 401 and redirect to login on unauthorized
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
 
+    // Handle 401 Unauthorized
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
@@ -44,11 +45,45 @@ api.interceptors.response.use(
           return api(originalRequest);
         }
       } catch (refreshError) {
+        // Refresh failed, clear tokens and trigger login
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
-        window.location.href = '/';
+        localStorage.removeItem('user');
+        
+        // Dispatch events to trigger login modal and sync auth state
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('unauthorized'));
+          window.dispatchEvent(new CustomEvent('showLoginModal'));
+        }
+        
         return Promise.reject(refreshError);
       }
+      
+      // No refresh token available, trigger login
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('user');
+      
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('unauthorized'));
+        window.dispatchEvent(new CustomEvent('showLoginModal'));
+      }
+      
+      return Promise.reject(error);
+    }
+
+    // Handle 403 Forbidden
+    if (error.response?.status === 403) {
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('user');
+      
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('unauthorized'));
+        window.dispatchEvent(new CustomEvent('showLoginModal'));
+      }
+      
+      return Promise.reject(error);
     }
 
     return Promise.reject(error);

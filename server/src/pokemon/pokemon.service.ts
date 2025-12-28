@@ -55,7 +55,7 @@ export class PokemonService {
       for (const table of tablesToCheck) {
         try {
           const result = await this.dataSource.query(
-            `SELECT 1 FROM information_schema.tables WHERE table_name = $1`,
+            `SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = $1`,
             [table]
           );
           if (result && result.length > 0) {
@@ -77,26 +77,23 @@ export class PokemonService {
         return;
       }
       
-      // Disable foreign key checks temporarily (PostgreSQL)
-      await this.dataSource.query('SET session_replication_role = replica;');
-      
       // Clear tables in order (respecting foreign key constraints)
       // Order matters: clear child tables first, then parent tables
+      // Use CASCADE to automatically handle foreign key dependencies
       const tablesToClear = ['favorite_pokemon', 'battles', 'contacts', 'pokemon', 'users'];
       for (const table of tablesToClear) {
         if (existingTables.includes(table)) {
           try {
+            // Use CASCADE to automatically handle foreign key constraints
             await this.dataSource.query(`TRUNCATE TABLE ${table} CASCADE;`);
             this.logger.debug(`Cleared table: ${table}`);
           } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
+            // Log but continue with other tables
             this.logger.warn(`Failed to clear table ${table}: ${errorMessage}`);
           }
         }
       }
-      
-      // Re-enable foreign key checks
-      await this.dataSource.query('SET session_replication_role = DEFAULT;');
       
       this.logger.log('All database tables cleared successfully.');
     } catch (error) {

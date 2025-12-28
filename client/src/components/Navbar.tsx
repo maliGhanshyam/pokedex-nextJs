@@ -12,6 +12,18 @@ const Navbar = () => {
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  // Listen for global login modal trigger events
+  useEffect(() => {
+    const handleShowLoginModal = () => {
+      setShowLoginModal(true);
+    };
+
+    window.addEventListener('showLoginModal', handleShowLoginModal);
+    return () => {
+      window.removeEventListener('showLoginModal', handleShowLoginModal);
+    };
+  }, []);
+
   const handleLogout = async () => {
     await logout();
     setShowProfileDropdown(false);

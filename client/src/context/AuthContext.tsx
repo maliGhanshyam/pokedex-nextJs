@@ -27,20 +27,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Check if user is logged in on mount
-    const accessToken = localStorage.getItem('accessToken');
-    const userData = localStorage.getItem('user');
+    const checkAuth = () => {
+      const accessToken = localStorage.getItem('accessToken');
+      const userData = localStorage.getItem('user');
 
-    if (accessToken && userData) {
-      try {
-        setUser(JSON.parse(userData));
-      } catch (error) {
-        console.error('Error parsing user data:', error);
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-        localStorage.removeItem('user');
+      if (accessToken && userData) {
+        try {
+          setUser(JSON.parse(userData));
+        } catch (error) {
+          console.error('Error parsing user data:', error);
+          localStorage.removeItem('accessToken');
+          localStorage.removeItem('refreshToken');
+          localStorage.removeItem('user');
+          setUser(null);
+        }
+      } else {
+        setUser(null);
       }
-    }
+    };
+
+    checkAuth();
     setIsLoading(false);
+
+    // Listen for unauthorized errors to sync user state
+    const handleUnauthorized = () => {
+      setUser(null);
+    };
+
+    window.addEventListener('unauthorized', handleUnauthorized);
+    return () => {
+      window.removeEventListener('unauthorized', handleUnauthorized);
+    };
   }, []);
 
   const login = async (email: string, password: string) => {
