@@ -63,6 +63,8 @@ export interface LoginDto {
 export interface SignupDto {
   email: string;
   password: string;
+  name?: string;
+  username?: string;
 }
 
 export interface AuthResponse {
@@ -71,7 +73,24 @@ export interface AuthResponse {
   user: {
     id: string;
     email: string;
+    name?: string;
+    username?: string;
   };
+}
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  name?: string;
+  username?: string;
+  createdAt: string;
+  favorites: Array<{
+    id: number;
+    name: string;
+    image: string;
+    imageOfficial?: string;
+    types: string[];
+  }>;
 }
 
 export const authApi = {
@@ -104,6 +123,13 @@ export const favoritesApi = {
 
   removeFavorite: async (pokemonId: number): Promise<void> => {
     await api.delete(`/favorites/${pokemonId}`);
+  },
+};
+
+export const usersApi = {
+  getProfile: async (): Promise<UserProfile> => {
+    const response = await api.get<UserProfile>('/users/profile');
+    return response.data;
   },
 };
 

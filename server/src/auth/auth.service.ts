@@ -23,10 +23,20 @@ export class AuthService {
       throw new ConflictException('User with this email already exists');
     }
 
+    // Check if username is already taken if provided
+    if (signupDto.username) {
+      const existingUsername = await this.usersService.findByUsername(signupDto.username);
+      if (existingUsername) {
+        throw new ConflictException('Username already taken');
+      }
+    }
+
     const hashedPassword = await bcrypt.hash(signupDto.password, 10);
     const user = await this.usersService.create({
       email: signupDto.email,
       password: hashedPassword,
+      name: signupDto.name,
+      username: signupDto.username,
     });
 
     const tokens = await this.generateTokens(user.id, user.email);
@@ -38,6 +48,8 @@ export class AuthService {
       user: {
         id: user.id,
         email: user.email,
+        name: user.name,
+        username: user.username,
       },
     };
   }
@@ -66,6 +78,8 @@ export class AuthService {
       user: {
         id: user.id,
         email: user.email,
+        name: user.name,
+        username: user.username,
       },
     };
   }

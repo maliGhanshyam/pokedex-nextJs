@@ -20,6 +20,12 @@ export class User {
   password: string;
 
   @Column({ nullable: true })
+  name: string;
+
+  @Column({ nullable: true, unique: true })
+  username: string;
+
+  @Column({ nullable: true })
   refreshToken: string;
 
   @CreateDateColumn()

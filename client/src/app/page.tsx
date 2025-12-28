@@ -12,11 +12,33 @@ export default async function HomePage({ searchParams }: SearchParams) {
   const searchTerm = search?.toLowerCase() || "";
   const offset = (currentPage - 1) * PAGE_SIZE;
 
-  // Get full list if searching, paginated otherwise
-  const data = await getPokemonList(
-    searchTerm ? 1000 : PAGE_SIZE,
-    searchTerm ? 0 : offset
-  );
+  let data;
+  try {
+    // Get full list if searching, paginated otherwise
+    data = await getPokemonList(
+      searchTerm ? 1000 : PAGE_SIZE,
+      searchTerm ? 0 : offset
+    );
+  } catch (error) {
+    console.error("Error loading pokemon:", error);
+    // Return empty state if API fails
+    return (
+      <div className="p-4 sm:p-8 bg-gradient-to-br from-orange-100 to-yellow-200 min-h-screen flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <div className="text-6xl mb-4">😢</div>
+          <h1 className="text-2xl font-bold text-gray-800 mb-4">
+            Unable to Load Pokémon
+          </h1>
+          <p className="text-gray-600 mb-6">
+            {error instanceof Error ? error.message : "Failed to connect to the backend server. Please ensure the backend is running."}
+          </p>
+          <p className="text-sm text-gray-500">
+            Make sure the backend server is running on {process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // Filter by search term
   const filteredResults = searchTerm

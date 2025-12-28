@@ -23,6 +23,17 @@ export class UsersService {
     return this.usersRepository.findOne({ where: { email } });
   }
 
+  async findByUsername(username: string): Promise<User | null> {
+    return this.usersRepository.findOne({ where: { username } });
+  }
+
+  async findOneWithFavorites(id: string): Promise<User | null> {
+    return this.usersRepository.findOne({
+      where: { id },
+      relations: ['favorites', 'favorites.pokemon'],
+    });
+  }
+
   async updateRefreshToken(
     userId: string,
     refreshToken: string | null,

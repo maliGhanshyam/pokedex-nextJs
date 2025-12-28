@@ -11,6 +11,8 @@ interface LoginModalProps {
 export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSignup, setIsSignup] = useState(false);
@@ -23,13 +25,15 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
 
     try {
       if (isSignup) {
-        await signup(email, password);
+        await signup(email, password, name, username);
       } else {
         await login(email, password);
       }
       onClose();
       setEmail('');
       setPassword('');
+      setName('');
+      setUsername('');
     } catch (err: any) {
       setError(
         err.response?.data?.message || 
@@ -58,6 +62,36 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {isSignup && (
+            <>
+              <div>
+                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                  Full Name
+                </label>
+                <input
+                  id="name"
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  placeholder="Enter your name (optional)"
+                />
+              </div>
+              <div>
+                <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
+                  Username
+                </label>
+                <input
+                  id="username"
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  placeholder="Choose a username (optional)"
+                />
+              </div>
+            </>
+          )}
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
               Email
@@ -110,6 +144,8 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             onClick={() => {
               setIsSignup(!isSignup);
               setError('');
+              setName('');
+              setUsername('');
             }}
             className="text-sm text-orange-600 hover:text-orange-700"
           >

@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 import type {
   PokemonListResponse,
   PokemonDetails,
@@ -10,6 +10,9 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
 });
 
 /**
@@ -52,31 +55,35 @@ export const getPokemonList = async (
   } catch (err: unknown) {
     let errorMessage = "Failed to fetch Pokémon list from backend.";
     
-    if (err && typeof err === 'object' && 'code' in err) {
-      const axiosError = err as { code?: string; message?: string };
-      if (axiosError.code === 'ECONNREFUSED' || axiosError.code === 'ERR_NETWORK') {
+    // Handle axios errors properly
+    if (axios.isAxiosError(err)) {
+      if (err.code === 'ECONNREFUSED' || err.code === 'ERR_NETWORK' || err.code === 'ECONNABORTED') {
         errorMessage = "Cannot connect to backend server. Please ensure the backend is running on http://localhost:3001";
-      }
-    }
-    
-    if (err && typeof err === 'object' && 'response' in err) {
-      const axiosError = err as { response?: { status?: number; data?: any } };
-      if (axiosError.response?.status === 404) {
-        errorMessage = "Pokémon data not found. Please ensure the backend sync has completed.";
-      } else if (axiosError.response?.status) {
-        errorMessage = `Backend returned error ${axiosError.response.status}`;
-      }
-    } else if (err && typeof err === 'object' && 'message' in err) {
-      const errorMsg = (err as Error).message;
-      if (errorMsg.includes('ECONNREFUSED') || errorMsg.includes('Network Error')) {
-        errorMessage = "Cannot connect to backend server. Please ensure the backend is running on http://localhost:3001";
+      } else if (err.response) {
+        // Server responded with error status
+        const status = err.response.status;
+        if (status === 404) {
+          errorMessage = "Pokémon data not found. Please ensure the backend sync has completed.";
+        } else {
+          errorMessage = `Backend returned error ${status}: ${err.response.data?.message || err.message}`;
+        }
+      } else if (err.request) {
+        // Request was made but no response received
+        errorMessage = "No response from backend server. Please ensure the backend is running on http://localhost:3001";
       } else {
-        errorMessage = errorMsg;
+        errorMessage = err.message || "An error occurred while fetching Pokémon list.";
       }
+    } else if (err instanceof Error) {
+      errorMessage = err.message;
+    } else if (typeof err === 'string') {
+      errorMessage = err;
     }
     
     console.error("Error fetching Pokémon list:", err);
-    throw new Error(errorMessage);
+    const error = new Error(errorMessage);
+    // Preserve original error for debugging
+    (error as any).originalError = err;
+    throw error;
   }
 };
 

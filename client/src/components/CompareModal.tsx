@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { compareApi, CompareResponse, CompareRequest } from '@/services/gameApi';
 import { pokemonTypeStyles } from '@/utils/pokemonTypes';
 import { PokemonDetails } from '@/types/pokemon';
@@ -26,6 +26,31 @@ export default function CompareModal({
 }: CompareModalProps) {
   const [compareResult, setCompareResult] = useState<CompareResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingPokemon1, setIsLoadingPokemon1] = useState(false);
+  const [isLoadingPokemon2, setIsLoadingPokemon2] = useState(false);
+
+  // Reset state when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setCompareResult(null);
+      setIsLoading(false);
+      setIsLoadingPokemon1(false);
+      setIsLoadingPokemon2(false);
+    }
+  }, [isOpen]);
+
+  // Clear loading state when pokemon is set
+  useEffect(() => {
+    if (pokemon1) {
+      setIsLoadingPokemon1(false);
+    }
+  }, [pokemon1]);
+
+  useEffect(() => {
+    if (pokemon2) {
+      setIsLoadingPokemon2(false);
+    }
+  }, [pokemon2]);
 
   const handleCompare = async () => {
     if (!pokemon1 || !pokemon2) return;
@@ -50,11 +75,11 @@ export default function CompareModal({
 
   return (
     <div
-      className="fixed inset-0 bg-gray-900 bg-opacity-75 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-gray-900 bg-opacity-75 backdrop-blur-sm flex items-center justify-center z-50 p-4 modal-overlay-enter"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto"
+        className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto modal-content-enter"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex justify-between items-center z-10">
@@ -79,17 +104,24 @@ export default function CompareModal({
                   }`}
                   onClick={(e) => {
                     e.stopPropagation();
+                    setIsLoadingPokemon1(true);
                     onSelectPokemon1();
                   }}
                 >
-                  {pokemon1 ? (
-                    <div className="text-center">
+                  {isLoadingPokemon1 ? (
+                    <div className="text-center animate-pulse">
+                      <div className="w-24 h-24 bg-gray-200 rounded-lg mx-auto mb-3"></div>
+                      <div className="h-5 bg-gray-200 rounded w-24 mx-auto mb-2"></div>
+                      <div className="text-xs text-gray-400">Loading...</div>
+                    </div>
+                  ) : pokemon1 ? (
+                    <div className="text-center animate-fadeIn">
                       <Image
                         src={getPokemonImage(pokemon1)}
                         alt={pokemon1.name}
                         width={120}
                         height={120}
-                        className="mx-auto"
+                        className="mx-auto transition-opacity duration-300"
                       />
                       <h3 className="text-xl font-bold capitalize mt-2">
                         {pokemon1.name}
@@ -112,17 +144,24 @@ export default function CompareModal({
                   }`}
                   onClick={(e) => {
                     e.stopPropagation();
+                    setIsLoadingPokemon2(true);
                     onSelectPokemon2();
                   }}
                 >
-                  {pokemon2 ? (
-                    <div className="text-center">
+                  {isLoadingPokemon2 ? (
+                    <div className="text-center animate-pulse">
+                      <div className="w-24 h-24 bg-gray-200 rounded-lg mx-auto mb-3"></div>
+                      <div className="h-5 bg-gray-200 rounded w-24 mx-auto mb-2"></div>
+                      <div className="text-xs text-gray-400">Loading...</div>
+                    </div>
+                  ) : pokemon2 ? (
+                    <div className="text-center animate-fadeIn">
                       <Image
                         src={getPokemonImage(pokemon2)}
                         alt={pokemon2.name}
                         width={120}
                         height={120}
-                        className="mx-auto"
+                        className="mx-auto transition-opacity duration-300"
                       />
                       <h3 className="text-xl font-bold capitalize mt-2">
                         {pokemon2.name}
@@ -140,8 +179,8 @@ export default function CompareModal({
 
               <button
                 onClick={handleCompare}
-                disabled={!pokemon1 || !pokemon2 || isLoading}
-                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-3 px-6 rounded-xl font-bold text-lg hover:from-purple-600 hover:to-pink-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105"
+                disabled={!pokemon1 || !pokemon2 || isLoading || isLoadingPokemon1 || isLoadingPokemon2}
+                className="w-full bg-orange-500 text-white py-3 px-6 rounded-xl font-bold text-lg hover:bg-orange-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isLoading ? 'Comparing...' : '⚖️ Compare'}
               </button>
@@ -256,7 +295,7 @@ export default function CompareModal({
               </div>
 
               {/* Win Probability */}
-              <div className="bg-gradient-to-r from-purple-100 to-pink-100 rounded-xl p-6">
+              <div className="bg-gradient-to-r from-orange-100 to-yellow-100 rounded-xl p-6">
                 <h3 className="text-xl font-bold mb-4 text-center">Win Probability</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -345,12 +384,20 @@ export default function CompareModal({
                 </div>
               </div>
 
-              <button
-                onClick={() => setCompareResult(null)}
-                className="w-full bg-orange-500 text-white py-2 px-4 rounded-lg font-semibold hover:bg-orange-600 transition-colors"
-              >
-                Compare Again
-              </button>
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setCompareResult(null)}
+                  className="flex-1 bg-gray-200 text-gray-800 py-2 px-4 rounded-lg font-semibold hover:bg-gray-300 transition-colors"
+                >
+                  Compare Again
+                </button>
+                <button
+                  onClick={onClose}
+                  className="flex-1 bg-orange-500 text-white py-2 px-4 rounded-lg font-semibold hover:bg-orange-600 transition-colors"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           )}
         </div>

@@ -23,76 +23,54 @@ export default function GamesPage() {
   const [comparePokemon2, setComparePokemon2] = useState<PokemonDetails | null>(null);
 
   const handleSelectBattlePokemon1 = () => {
-    console.log('Setting up selector for battle pokemon 1');
     setSelectorTitle('Select Pokémon 1 for Battle');
     setWhichModal('battle');
     const callback = (pokemon: PokemonDetails) => {
-      console.log('Battle Pokemon 1 callback executing with:', pokemon);
       setBattlePokemon1(pokemon);
     };
     selectorCallbackRef.current = callback;
     setSelectorCallback(() => callback);
-    setShowBattleModal(false);
-    setTimeout(() => {
-      setShowPokemonSelector(true);
-    }, 0);
+    // Don't close battle modal, just overlay selector on top
+    setShowPokemonSelector(true);
   };
 
   const handleSelectBattlePokemon2 = () => {
-    console.log('Setting up selector for battle pokemon 2');
     setSelectorTitle('Select Pokémon 2 for Battle');
     setWhichModal('battle');
     const callback = (pokemon: PokemonDetails) => {
-      console.log('Battle Pokemon 2 callback executing with:', pokemon);
       setBattlePokemon2(pokemon);
     };
     selectorCallbackRef.current = callback;
     setSelectorCallback(() => callback);
-    setShowBattleModal(false);
-    setTimeout(() => {
-      setShowPokemonSelector(true);
-    }, 0);
+    // Don't close battle modal, just overlay selector on top
+    setShowPokemonSelector(true);
   };
 
   const handleSelectComparePokemon1 = () => {
-    console.log('Setting up selector for compare pokemon 1');
     setSelectorTitle('Select Pokémon 1 for Comparison');
     setWhichModal('compare');
     const callback = (pokemon: PokemonDetails) => {
-      console.log('Compare Pokemon 1 callback executing with:', pokemon);
       setComparePokemon1(pokemon);
     };
     selectorCallbackRef.current = callback;
     setSelectorCallback(() => callback);
-    setShowCompareModal(false);
-    setTimeout(() => {
-      setShowPokemonSelector(true);
-    }, 0);
+    // Don't close compare modal, just overlay selector on top
+    setShowPokemonSelector(true);
   };
 
   const handleSelectComparePokemon2 = () => {
-    console.log('Setting up selector for compare pokemon 2');
     setSelectorTitle('Select Pokémon 2 for Comparison');
     setWhichModal('compare');
     const callback = (pokemon: PokemonDetails) => {
-      console.log('Compare Pokemon 2 callback executing with:', pokemon);
       setComparePokemon2(pokemon);
     };
     selectorCallbackRef.current = callback;
     setSelectorCallback(() => callback);
-    setShowCompareModal(false);
-    setTimeout(() => {
-      setShowPokemonSelector(true);
-    }, 0);
+    // Don't close compare modal, just overlay selector on top
+    setShowPokemonSelector(true);
   };
 
   const handleSelectPokemon = (pokemon: PokemonDetails) => {
-    console.log('=== handleSelectPokemon called ===');
-    console.log('pokemon:', pokemon);
-    console.log('selectorCallbackRef.current:', selectorCallbackRef.current);
-    console.log('selectorCallback state:', selectorCallback);
-    console.log('whichModal:', whichModal);
-    
     // Use the ref first as it's more reliable for callbacks
     const callback = selectorCallbackRef.current || selectorCallback;
     
@@ -103,29 +81,14 @@ export default function GamesPage() {
 
     try {
       // Execute the callback to set the Pokemon
-      console.log('Executing callback with pokemon:', pokemon);
       callback(pokemon);
-      console.log('Callback executed successfully');
-      
-      // Store which modal to reopen before clearing state
-      const modalToReopen = whichModal;
       
       // Clear the callback and close selector
+      // The parent modal stays open, we just close the selector overlay
       selectorCallbackRef.current = null;
       setSelectorCallback(null);
       setShowPokemonSelector(false);
       setWhichModal(null);
-      
-      // Reopen the appropriate modal
-      setTimeout(() => {
-        if (modalToReopen === 'battle') {
-          console.log('Reopening battle modal');
-          setShowBattleModal(true);
-        } else if (modalToReopen === 'compare') {
-          console.log('Reopening compare modal');
-          setShowCompareModal(true);
-        }
-      }, 100);
     } catch (error) {
       console.error('Error executing callback:', error);
     }
@@ -214,7 +177,12 @@ export default function GamesPage() {
 
       <BattleModal
         isOpen={showBattleModal}
-        onClose={() => setShowBattleModal(false)}
+        onClose={() => {
+          setShowBattleModal(false);
+          // Reset battle state when closing
+          setBattlePokemon1(null);
+          setBattlePokemon2(null);
+        }}
         pokemon1={battlePokemon1}
         pokemon2={battlePokemon2}
         onSelectPokemon1={handleSelectBattlePokemon1}
@@ -223,7 +191,12 @@ export default function GamesPage() {
 
       <CompareModal
         isOpen={showCompareModal}
-        onClose={() => setShowCompareModal(false)}
+        onClose={() => {
+          setShowCompareModal(false);
+          // Reset compare state when closing
+          setComparePokemon1(null);
+          setComparePokemon2(null);
+        }}
         pokemon1={comparePokemon1}
         pokemon2={comparePokemon2}
         onSelectPokemon1={handleSelectComparePokemon1}
@@ -233,17 +206,11 @@ export default function GamesPage() {
       <PokemonSelectorModal
         isOpen={showPokemonSelector}
         onClose={() => {
-          const modalType = whichModal;
+          // Just close the selector, parent modal stays open
           selectorCallbackRef.current = null;
           setSelectorCallback(null);
           setShowPokemonSelector(false);
           setWhichModal(null);
-          // Reopen the appropriate modal if it was closed
-          if (modalType === 'battle') {
-            setShowBattleModal(true);
-          } else if (modalType === 'compare') {
-            setShowCompareModal(true);
-          }
         }}
         onSelect={handleSelectPokemon}
         title={selectorTitle}

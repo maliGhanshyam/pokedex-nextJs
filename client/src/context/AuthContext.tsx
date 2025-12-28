@@ -6,13 +6,15 @@ import { authApi, AuthResponse } from '@/services/api';
 interface User {
   id: string;
   email: string;
+  name?: string;
+  username?: string;
 }
 
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  signup: (email: string, password: string) => Promise<void>;
+  signup: (email: string, password: string, name?: string, username?: string) => Promise<void>;
   logout: () => Promise<void>;
   isAuthenticated: boolean;
 }
@@ -49,8 +51,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(response.user);
   };
 
-  const signup = async (email: string, password: string) => {
-    const response: AuthResponse = await authApi.signup({ email, password });
+  const signup = async (email: string, password: string, name?: string, username?: string) => {
+    const response: AuthResponse = await authApi.signup({ email, password, name, username });
     localStorage.setItem('accessToken', response.accessToken);
     localStorage.setItem('refreshToken', response.refreshToken);
     localStorage.setItem('user', JSON.stringify(response.user));

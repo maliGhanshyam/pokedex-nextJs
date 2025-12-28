@@ -28,6 +28,33 @@ export default function BattleModal({
   const [isLoading, setIsLoading] = useState(false);
   const [currentTurn, setCurrentTurn] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [isLoadingPokemon1, setIsLoadingPokemon1] = useState(false);
+  const [isLoadingPokemon2, setIsLoadingPokemon2] = useState(false);
+
+  // Reset state when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setBattleResult(null);
+      setCurrentTurn(0);
+      setIsLoading(false);
+      setIsAnimating(false);
+      setIsLoadingPokemon1(false);
+      setIsLoadingPokemon2(false);
+    }
+  }, [isOpen]);
+
+  // Clear loading state when pokemon is set
+  useEffect(() => {
+    if (pokemon1) {
+      setIsLoadingPokemon1(false);
+    }
+  }, [pokemon1]);
+
+  useEffect(() => {
+    if (pokemon2) {
+      setIsLoadingPokemon2(false);
+    }
+  }, [pokemon2]);
 
   useEffect(() => {
     if (battleResult && currentTurn < battleResult.battleLog.length) {
@@ -62,18 +89,18 @@ export default function BattleModal({
     }
   };
 
-  if (!isOpen) return null;
-
   const currentLog = battleResult?.battleLog.slice(0, currentTurn) || [];
   const isComplete = battleResult && currentTurn >= battleResult.battleLog.length;
 
+  if (!isOpen) return null;
+
   return (
     <div
-      className="fixed inset-0 bg-gray-900 bg-opacity-75 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-gray-900 bg-opacity-75 backdrop-blur-sm flex items-center justify-center z-50 p-4 modal-overlay-enter"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+        className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto modal-content-enter"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex justify-between items-center z-10">
@@ -99,17 +126,24 @@ export default function BattleModal({
                   }`}
                   onClick={(e) => {
                     e.stopPropagation();
+                    setIsLoadingPokemon1(true);
                     onSelectPokemon1();
                   }}
                 >
-                  {pokemon1 ? (
-                    <div className="text-center">
+                  {isLoadingPokemon1 ? (
+                    <div className="text-center animate-pulse">
+                      <div className="w-24 h-24 bg-gray-200 rounded-lg mx-auto mb-3"></div>
+                      <div className="h-5 bg-gray-200 rounded w-24 mx-auto mb-2"></div>
+                      <div className="text-xs text-gray-400">Loading...</div>
+                    </div>
+                  ) : pokemon1 ? (
+                    <div className="text-center animate-fadeIn">
                       <Image
                         src={getPokemonImage(pokemon1)}
                         alt={pokemon1.name}
                         width={120}
                         height={120}
-                        className="mx-auto"
+                        className="mx-auto transition-opacity duration-300"
                       />
                       <h3 className="text-xl font-bold capitalize mt-2">
                         {pokemon1.name}
@@ -134,10 +168,17 @@ export default function BattleModal({
                   }`}
                   onClick={(e) => {
                     e.stopPropagation();
+                    setIsLoadingPokemon2(true);
                     onSelectPokemon2();
                   }}
                 >
-                  {pokemon2 ? (
+                  {isLoadingPokemon2 ? (
+                    <div className="text-center">
+                      <div className="w-24 h-24 bg-gray-200 rounded-lg mx-auto mb-3 animate-pulse"></div>
+                      <div className="h-5 bg-gray-200 rounded w-24 mx-auto mb-2 animate-pulse"></div>
+                      <div className="text-xs text-gray-400">Loading...</div>
+                    </div>
+                  ) : pokemon2 ? (
                     <div className="text-center">
                       <Image
                         src={getPokemonImage(pokemon2)}
@@ -162,8 +203,8 @@ export default function BattleModal({
 
               <button
                 onClick={handleBattle}
-                disabled={!pokemon1 || !pokemon2 || isLoading}
-                className="w-full bg-gradient-to-r from-red-500 to-orange-500 text-white py-3 px-6 rounded-xl font-bold text-lg hover:from-red-600 hover:to-orange-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105"
+                disabled={!pokemon1 || !pokemon2 || isLoading || isLoadingPokemon1 || isLoadingPokemon2}
+                className="w-full bg-orange-500 text-white py-3 px-6 rounded-xl font-bold text-lg hover:bg-orange-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isLoading ? '⚔️ Fighting...' : '⚔️ Start Battle'}
               </button>

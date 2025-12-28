@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { getPokemonList, getPokemonDetails } from '@/services/pokeapi';
 import { PokemonDetails } from '@/types/pokemon';
 import Image from 'next/image';
+import { PokemonSelectorItemSkeleton } from './SkeletonLoader';
 
 interface PokemonSelectorModalProps {
   isOpen: boolean;
@@ -26,6 +27,7 @@ export default function PokemonSelectorModal({
   useEffect(() => {
     if (isOpen) {
       loadPokemon();
+      setSearchTerm(''); // Reset search when opening
     }
   }, [isOpen]);
 
@@ -49,11 +51,11 @@ export default function PokemonSelectorModal({
 
   return (
     <div
-      className="fixed inset-0 bg-gray-900 bg-opacity-75 backdrop-blur-sm flex items-center justify-center z-[60] p-4"
+      className="fixed inset-0 bg-gray-900 bg-opacity-75 backdrop-blur-sm flex items-center justify-center z-[60] p-4 modal-overlay-enter"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+        className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col modal-content-enter"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex justify-between items-center z-10">
@@ -76,7 +78,11 @@ export default function PokemonSelectorModal({
           />
 
           {isLoading ? (
-            <div className="text-center py-8">Loading...</div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              {Array.from({ length: 8 }).map((_, index) => (
+                <PokemonSelectorItemSkeleton key={index} />
+              ))}
+            </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
               {filteredPokemon.map((pokemon) => (
@@ -86,12 +92,7 @@ export default function PokemonSelectorModal({
                     e.preventDefault();
                     e.stopPropagation();
                     
-                    console.log('=== POKEMON CLICKED ===', pokemon.name);
-                    console.log('selectingPokemon state:', selectingPokemon);
-                    console.log('onSelect function:', onSelect);
-                    
                     if (selectingPokemon) {
-                      console.log('Already selecting, ignoring click');
                       return;
                     }
                     
@@ -99,12 +100,8 @@ export default function PokemonSelectorModal({
                       setSelectingPokemon(pokemon.name);
                       
                       try {
-                        console.log('Fetching details for:', pokemon.name);
                         const fullDetails = await getPokemonDetails(pokemon.name);
-                        console.log('Details fetched:', fullDetails);
-                        console.log('Calling onSelect...');
                         onSelect(fullDetails);
-                        console.log('onSelect called successfully');
                       } catch (error) {
                         console.error('Error in handleSelection:', error);
                         // Use basic data from the list
@@ -115,7 +112,6 @@ export default function PokemonSelectorModal({
                           imageOfficial: pokemon.imageOfficial,
                           types: [],
                         };
-                        console.log('Using basic pokemon data:', basicPokemon);
                         onSelect(basicPokemon);
                       } finally {
                         setSelectingPokemon(null);
@@ -124,7 +120,9 @@ export default function PokemonSelectorModal({
                     
                     handleSelection();
                   }}
-                  className="bg-gray-50 hover:bg-orange-50 rounded-xl p-4 transition-all transform hover:scale-105 border border-gray-200 hover:border-orange-400 cursor-pointer"
+                  className={`bg-gray-50 hover:bg-orange-50 rounded-xl p-4 transition-all transform hover:scale-105 border border-gray-200 hover:border-orange-400 cursor-pointer relative ${
+                    selectingPokemon === pokemon.name ? 'opacity-50 pointer-events-none' : ''
+                  }`}
                   role="button"
                   tabIndex={0}
                   onKeyDown={(e) => {
@@ -134,6 +132,11 @@ export default function PokemonSelectorModal({
                     }
                   }}
                 >
+                  {selectingPokemon === pokemon.name ? (
+                    <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75 rounded-xl">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+                    </div>
+                  ) : null}
                   <Image
                     src={pokemon.imageOfficial || pokemon.image}
                     alt={pokemon.name}
