@@ -28,8 +28,18 @@ export class PokemonService {
   }
 
   async hasData(): Promise<boolean> {
-    const count = await this.pokemonRepository.count();
-    return count > 0;
+    try {
+      const count = await this.pokemonRepository.count();
+      return count > 0;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      // If table doesn't exist, return false (no data exists)
+      if (errorMessage.includes('relation') && errorMessage.includes('does not exist')) {
+        return false;
+      }
+      // Re-throw other errors
+      throw error;
+    }
   }
 
   async findAll(query: PaginationQueryDto) {

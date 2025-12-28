@@ -17,6 +17,11 @@ export class PokemonSyncService implements OnModuleInit {
 
   async onModuleInit() {
     this.logger.log('Application started, checking if Pokémon data exists...');
+    
+    // Wait a bit to ensure database connection and schema synchronization is complete
+    // This is important when DB_SYNCHRONIZE=true is enabled
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
     try {
       const hasData = await this.pokemonService.hasData();
       if (!hasData) {
@@ -26,9 +31,28 @@ export class PokemonSyncService implements OnModuleInit {
         this.logger.log('Pokémon data already exists in database, skipping startup sync.');
       }
     } catch (error) {
-      this.logger.error(
-        `Startup sync check failed: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      // Check if error is due to missing tables (database not initialized)
+      if (errorMessage.includes('relation') && errorMessage.includes('does not exist')) {
+        this.logger.warn(
+          '⚠️  Database tables do not exist yet. To create them:',
+        );
+        this.logger.warn(
+          '   1. Go to your backend service on Render → Settings → Environment',
+        );
+        this.logger.warn(
+          '   2. Add: DB_SYNCHRONIZE=true',
+        );
+        this.logger.warn(
+          '   3. Save and wait for redeploy',
+        );
+        this.logger.warn(
+          '   Once tables are created, the sync will run automatically on next startup.',
+        );
+      } else {
+        this.logger.error(`Startup sync check failed: ${errorMessage}`);
+      }
     }
   }
 
