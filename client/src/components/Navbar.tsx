@@ -38,11 +38,11 @@ const Navbar = () => {
     };
 
     if (showProfileDropdown) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('click', handleClickOutside);
     }
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('click', handleClickOutside);
     };
   }, [showProfileDropdown]);
 
@@ -76,28 +76,40 @@ const Navbar = () => {
                     {initials}
                   </button>
                   {showProfileDropdown && (
-                    <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl py-2 z-50">
+                    <div 
+                      className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl py-2 z-50"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <div className="px-4 py-3 border-b border-gray-200">
                         <p className="text-sm font-semibold text-gray-900">{displayName}</p>
                         <p className="text-xs text-gray-500 truncate">{user?.email}</p>
                       </div>
                       <Link
                         href="/profile"
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                        onClick={() => setShowProfileDropdown(false)}
+                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowProfileDropdown(false);
+                        }}
                       >
                         Profile
                       </Link>
                       <Link
                         href="/favorites"
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                        onClick={() => setShowProfileDropdown(false)}
+                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowProfileDropdown(false);
+                        }}
                       >
                         Favorites
                       </Link>
                       <button
-                        onClick={handleLogout}
-                        className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleLogout();
+                        }}
+                        className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 cursor-pointer"
                       >
                         Logout
                       </button>
@@ -126,6 +138,26 @@ const Navbar = () => {
               <Link href="/games" className="hover:text-yellow-400 transition px-2 py-1">
                 🎮 Games
               </Link>
+              {isAuthenticated && (
+                <Link
+                  href="/favorites"
+                  className="hover:text-yellow-400 transition px-2 py-1 flex items-center gap-1"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-4 w-4 text-red-500 fill-current"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                    />
+                  </svg>
+                  Favorites
+                </Link>
+              )}
             </div>
             <div className="w-full">
               <Suspense
@@ -220,7 +252,10 @@ const Navbar = () => {
                   </svg>
                 </button>
                 {showProfileDropdown && (
-                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl py-2 z-50">
+                  <div 
+                    className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl py-2 z-50"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <div className="px-4 py-3 border-b border-gray-200">
                       <p className="text-sm font-semibold text-gray-900">{displayName}</p>
                       <p className="text-xs text-gray-500 truncate">{user?.email}</p>
@@ -230,21 +265,30 @@ const Navbar = () => {
                     </div>
                     <Link
                       href="/profile"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                      onClick={() => setShowProfileDropdown(false)}
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowProfileDropdown(false);
+                      }}
                     >
                       Profile
                     </Link>
                     <Link
                       href="/favorites"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                      onClick={() => setShowProfileDropdown(false)}
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowProfileDropdown(false);
+                      }}
                     >
                       Favorites
                     </Link>
                     <button
-                      onClick={handleLogout}
-                      className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleLogout();
+                      }}
+                      className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 cursor-pointer"
                     >
                       Logout
                     </button>
