@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   UseGuards,
+  NotFoundException,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { FavoritesService } from '../favorites/favorites.service';
