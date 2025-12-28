@@ -6,7 +6,7 @@ const Footer = () => {
           &copy; {new Date().getFullYear()} Pokédex. All rights reserved.
         </p>
         <div className="text-sm mt-2 md:mt-0">
-          <span className="mr-4">Built with ❤️ for Monika ❤️</span>
+          <span className="mr-4">Built with ❤️ Team MoGha ❤️</span>
           <a
             href="https://pokeapi.co"
             target="_blank"
