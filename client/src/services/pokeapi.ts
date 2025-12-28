@@ -1,4 +1,4 @@
-import axios, { AxiosError } from "axios";
+import axios from "axios";
 import type {
   PokemonListResponse,
   PokemonDetails,
@@ -53,31 +53,66 @@ export const getPokemonList = async (
     );
 
     // Backend returns the correct format
-    return response.data;
+    return response.data as Omit<PokemonListResponse, "results"> & {
+      results: (PokemonListResult & { id: string; image: string; imageOfficial: string })[];
+    };
   } catch (err: unknown) {
     let errorMessage = "Failed to fetch Pokémon list from backend.";
     
     // Handle axios errors properly
-    if (axios.isAxiosError(err)) {
-      if (err.code === 'ECONNREFUSED' || err.code === 'ERR_NETWORK' || err.code === 'ECONNABORTED') {
-        if (err.code === 'ECONNABORTED') {
+    const isAxiosError = (error: unknown): error is { 
+      response?: { status: number; data?: any; statusText?: string };
+      request?: any;
+      code?: string;
+      message: string;
+      config?: { url?: string };
+    } => {
+      return typeof error === 'object' && error !== null && 'isAxiosError' in error;
+    };
+    
+    if (isAxiosError(err) || (err && typeof err === 'object' && 'response' in err)) {
+      const errCode = (err as any).code;
+      if (errCode === 'ECONNREFUSED' || errCode === 'ERR_NETWORK' || errCode === 'ECONNABORTED') {
+        if (errCode === 'ECONNABORTED') {
           errorMessage = `Request timed out after ${API_TIMEOUT}ms. The backend server at ${API_BASE_URL} may be starting up (Render.com free tier can take 30-60 seconds to wake up). Please try again in a moment.`;
         } else {
           errorMessage = `Cannot connect to backend server. Please ensure the backend is running on ${API_BASE_URL}`;
         }
-      } else if (err.response) {
+      } else if ((err as any).response) {
         // Server responded with error status
-        const status = err.response.status;
-        if (status === 404) {
+        const response = (err as any).response;
+        const status = response.status;
+        
+        // Handle 502 Bad Gateway (Render server down/crashing)
+        if (status === 502) {
+          errorMessage = "Backend server is temporarily unavailable (502 Bad Gateway). This usually means the server is starting up, crashed, or is experiencing issues. Please wait a moment and try again. Render.com free tier services can take 30-60 seconds to wake up from sleep.";
+        } else if (status === 503) {
+          errorMessage = "Backend server is temporarily unavailable (503 Service Unavailable). The server may be overloaded or under maintenance. Please try again in a moment.";
+        } else if (status === 504) {
+          errorMessage = `Request timed out (504 Gateway Timeout). The backend server at ${API_BASE_URL} took too long to respond. This may happen on Render.com free tier during cold starts. Please try again.`;
+        } else if (status === 404) {
           errorMessage = "Pokémon data not found. Please ensure the backend sync has completed.";
+        } else if (status >= 500) {
+          errorMessage = `Backend server error (${status}). The server encountered an internal error. Please try again later.`;
         } else {
-          errorMessage = `Backend returned error ${status}: ${err.response.data?.message || err.message}`;
+          // For other 4xx errors, try to extract a meaningful message
+          const responseData = response.data;
+          let detailMessage = '';
+          
+          // Check if response is HTML (like Render's error page)
+          if (typeof responseData === 'string' && responseData.includes('<!DOCTYPE html>')) {
+            detailMessage = ' (Server returned an error page)';
+          } else if (responseData?.message) {
+            detailMessage = `: ${responseData.message}`;
+          }
+          
+          errorMessage = `Backend returned error ${status}${detailMessage}`;
         }
-      } else if (err.request) {
+      } else if ((err as any).request) {
         // Request was made but no response received
         errorMessage = `No response from backend server. Please ensure the backend is running on ${API_BASE_URL}`;
       } else {
-        errorMessage = err.message || "An error occurred while fetching Pokémon list.";
+        errorMessage = (err as any).message || "An error occurred while fetching Pokémon list.";
       }
     } else if (err instanceof Error) {
       errorMessage = err.message;
@@ -85,10 +120,37 @@ export const getPokemonList = async (
       errorMessage = err;
     }
     
-    console.error("Error fetching Pokémon list:", err);
+    // Log error without the full HTML response to reduce noise
+    const axiosErr = err as any;
+    if (axiosErr?.response?.status === 502) {
+      console.error("Error fetching Pokémon list: 502 Bad Gateway - Backend server unavailable");
+    } else {
+      // Only log essential error info, not the full response
+      const logError = axiosErr?.response || axiosErr?.request
+        ? { 
+            message: axiosErr?.message || 'Unknown error', 
+            status: axiosErr?.response?.status, 
+            code: axiosErr?.code,
+            url: axiosErr?.config?.url 
+          }
+        : err;
+      console.error("Error fetching Pokémon list:", logError);
+    }
+    
     const error = new Error(errorMessage);
-    // Preserve original error for debugging
-    (error as any).originalError = err;
+    // Preserve original error for debugging (but don't include large HTML responses)
+    if (axiosErr?.response?.data && typeof axiosErr.response.data === 'string' && axiosErr.response.data.length > 1000) {
+      (error as any).originalError = {
+        message: axiosErr?.message || 'Unknown error',
+        status: axiosErr.response.status,
+        statusText: axiosErr.response.statusText,
+        code: axiosErr?.code,
+        url: axiosErr?.config?.url,
+        dataPreview: 'HTML error page (truncated)'
+      };
+    } else {
+      (error as any).originalError = err;
+    }
     throw error;
   }
 };

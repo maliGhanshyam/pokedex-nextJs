@@ -20,21 +20,58 @@ export default async function HomePage({ searchParams }: SearchParams) {
       searchTerm ? 0 : offset
     );
   } catch (error) {
-    console.error("Error loading pokemon:", error);
+    // Only log essential error info to reduce console noise
+    if (error instanceof Error) {
+      const is502 = error.message.includes('502') || (error as any).originalError?.status === 502;
+      if (is502) {
+        console.error("Error loading pokemon: 502 Bad Gateway - Backend server unavailable");
+      } else {
+        console.error("Error loading pokemon:", error.message);
+      }
+    } else {
+      console.error("Error loading pokemon:", "Unknown error");
+    }
+    
     // Return empty state if API fails
+    const errorMessage = error instanceof Error 
+      ? error.message 
+      : "Failed to connect to the backend server. Please ensure the backend is running.";
+    
+    const is502Error = errorMessage.includes('502') || errorMessage.includes('Bad Gateway');
+    
     return (
       <div className="p-4 sm:p-8 bg-gradient-to-br from-orange-100 to-yellow-200 min-h-screen flex items-center justify-center">
         <div className="text-center max-w-md">
-          <div className="text-6xl mb-4">😢</div>
+          <div className="text-6xl mb-4">{is502Error ? "⏳" : "😢"}</div>
           <h1 className="text-2xl font-bold text-gray-800 mb-4">
-            Unable to Load Pokémon
+            {is502Error ? "Backend Server Starting..." : "Unable to Load Pokémon"}
           </h1>
           <p className="text-gray-600 mb-6">
-            {error instanceof Error ? error.message : "Failed to connect to the backend server. Please ensure the backend is running."}
+            {errorMessage}
           </p>
+          {is502Error && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4 text-left">
+              <p className="text-sm text-yellow-800 mb-2">
+                <strong>What's happening?</strong>
+              </p>
+              <ul className="text-sm text-yellow-700 list-disc list-inside space-y-1">
+                <li>Render.com free tier services sleep after inactivity</li>
+                <li>It can take 30-60 seconds for the server to wake up</li>
+                <li>Please wait a moment and refresh the page</li>
+              </ul>
+            </div>
+          )}
           <p className="text-sm text-gray-500">
-            Make sure the backend server is running on {process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}
+            Backend URL: {process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}
           </p>
+          {is502Error && (
+            <Link
+              href="/"
+              className="mt-4 inline-block px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+            >
+              Retry Now
+            </Link>
+          )}
         </div>
       </div>
     );
