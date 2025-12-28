@@ -211,21 +211,32 @@ export default function BattleModal({
             </div>
           ) : (
             <div className="space-y-6">
-              {/* Battle Result Header */}
-              <div className="text-center">
-                <div
-                  className={`inline-block px-6 py-3 rounded-full text-xl font-bold ${
-                    battleResult.winnerId === pokemon1?.id
-                      ? 'bg-green-100 text-green-800'
-                      : 'bg-blue-100 text-blue-800'
-                  }`}
-                >
-                  🏆 {battleResult.winnerName} Wins!
+              {/* Battle Result Header - Only show when battle is complete */}
+              {isComplete ? (
+                <div className="text-center">
+                  <div
+                    className={`inline-block px-6 py-3 rounded-full text-xl font-bold ${
+                      battleResult.winnerId === pokemon1?.id
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-blue-100 text-blue-800'
+                    }`}
+                  >
+                    🏆 {battleResult.winnerName} Wins!
+                  </div>
+                  <div className="text-gray-600 mt-2">
+                    Battle completed in {battleResult.turns} turns
+                  </div>
                 </div>
-                <div className="text-gray-600 mt-2">
-                  Battle completed in {battleResult.turns} turns
+              ) : (
+                <div className="text-center">
+                  <div className="inline-block px-6 py-3 rounded-full text-xl font-bold bg-gray-100 text-gray-700">
+                    ⚔️ Battle in Progress...
+                  </div>
+                  <div className="text-gray-500 mt-2">
+                    Turn {currentTurn} of {battleResult.battleLog.length}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Battle Animation */}
               <div className="grid grid-cols-2 gap-4 relative">
