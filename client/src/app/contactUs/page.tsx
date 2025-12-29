@@ -8,9 +8,9 @@ export default function ContactUsPage() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [formData, setFormData] = useState({
-    name: "Ghanshyam", // Hardcoded name
+    name: "",
     email: "",
-    mobile: "8999764387", // Default mobile number
+    mobile: "",
     message: "",
   });
 
@@ -61,9 +61,9 @@ export default function ContactUsPage() {
       setSubmitStatus("success");
       setErrorMessage("");
       setFormData({
-        name: "Ghanshyam",
+        name: "",
         email: "",
-        mobile: "899900000",
+        mobile: "",
         message: "",
       });
 
@@ -146,6 +146,31 @@ export default function ContactUsPage() {
             <div className="space-y-6">
               <div className="flex items-start gap-4">
                 <div className="w-12 h-12 bg-yellow-400 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <span className="text-2xl">👤</span>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-800 mb-1">Name</h3>
+                  <p className="text-gray-600">Ghanshyam</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 bg-green-400 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <span className="text-2xl">📱</span>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-800 mb-1">Mobile No</h3>
+                  <a
+                    href="tel:8999764387"
+                    className="text-gray-600 hover:text-yellow-400 transition-colors"
+                  >
+                    8999764387
+                  </a>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 bg-blue-400 rounded-lg flex items-center justify-center flex-shrink-0">
                   <span className="text-2xl">📧</span>
                 </div>
                 <div>
@@ -155,23 +180,6 @@ export default function ContactUsPage() {
                     className="text-gray-600 hover:text-yellow-400 transition-colors"
                   >
                     ghanshyams.mali@gmail.com
-                  </a>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 bg-orange-400 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <span className="text-2xl">🌐</span>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-800 mb-1">Website</h3>
-                  <a
-                    href="https://pokeapi.co"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-gray-600 hover:text-yellow-400 transition-colors"
-                  >
-                    Powered by PokéAPI
                   </a>
                 </div>
               </div>
@@ -227,8 +235,9 @@ export default function ContactUsPage() {
                   id="name"
                   name="name"
                   value={formData.name}
-                  readOnly
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
+                  onChange={handleChange}
+                  required
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-400 focus:border-transparent outline-none transition"
                   placeholder="Your name"
                 />
               </div>
@@ -267,7 +276,7 @@ export default function ContactUsPage() {
                   onChange={handleChange}
                   required
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-400 focus:border-transparent outline-none transition"
-                  placeholder="899900000"
+                  placeholder="Your mobile number"
                 />
               </div>
 
