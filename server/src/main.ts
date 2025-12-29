@@ -3,6 +3,7 @@ import { ValidationPipe, HttpException, HttpStatus } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { ConfigService } from '@nestjs/config';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
+import * as compression from 'compression';
 
 async function bootstrap() {
   try {
@@ -12,6 +13,9 @@ async function bootstrap() {
     // Use process.env.PORT directly (required by Render)
     const port = process.env.PORT || configService.get('PORT') || 3001;
     const corsOrigin = configService.get('CORS_ORIGIN', 'http://localhost:3000');
+
+    // Enable compression for better performance
+    app.use(compression());
 
     app.enableCors({
       origin: corsOrigin,

@@ -5,6 +5,7 @@ import {
   Query,
   ParseIntPipe,
   DefaultValuePipe,
+  Header,
 } from '@nestjs/common';
 import { PokemonService } from './pokemon.service';
 import {
@@ -18,19 +19,25 @@ export class PokemonController {
   constructor(private pokemonService: PokemonService) {}
 
   @Get()
+  @Header('Cache-Control', 'public, max-age=300') // Cache for 5 minutes
   async findAll(
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit?: number,
     @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset?: number,
   ): Promise<PokemonListResponseDto> {
-    return this.pokemonService.findAll({ limit, offset });
+    // Limit max page size to prevent large queries
+    const maxLimit = 100;
+    const safeLimit = Math.min(limit || 20, maxLimit);
+    return this.pokemonService.findAll({ limit: safeLimit, offset: offset || 0 });
   }
 
   @Get('types')
+  @Header('Cache-Control', 'public, max-age=3600') // Cache for 1 hour (types don't change often)
   async findAllTypes(): Promise<string[]> {
     return this.pokemonService.findAllTypes();
   }
 
   @Get(':name')
+  @Header('Cache-Control', 'public, max-age=1800') // Cache for 30 minutes
   async findOne(@Param('name') name: string): Promise<PokemonDetailsDto> {
     return this.pokemonService.findOne(name);
   }

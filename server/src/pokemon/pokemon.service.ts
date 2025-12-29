@@ -112,7 +112,9 @@ export class PokemonService {
     const { limit = 20, offset = 0 } = query;
 
     try {
+      // Optimize query by selecting only needed fields
       const [pokemon, total] = await this.pokemonRepository.findAndCount({
+        select: ['id', 'name', 'sprite', 'sprites'],
         take: limit,
         skip: offset,
         order: { id: 'ASC' },

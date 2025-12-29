@@ -37,6 +37,13 @@ import { Battle } from './entities/battle.entity';
         entities: [User, Pokemon, FavoritePokemon, Contact, Battle],
         synchronize: configService.get('DB_SYNCHRONIZE') === 'true' || configService.get('NODE_ENV') === 'development',
         logging: configService.get('NODE_ENV') === 'development',
+        // Connection pooling for better performance
+        extra: {
+          max: 10, // Maximum number of connections in the pool
+          min: 2, // Minimum number of connections in the pool
+          idleTimeoutMillis: 30000, // Close idle connections after 30 seconds
+          connectionTimeoutMillis: 2000, // Return an error after 2 seconds if connection cannot be established
+        },
       }),
       inject: [ConfigService],
     }),
