@@ -1,6 +1,5 @@
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   // Output configuration for production only
   ...(process.env.NODE_ENV === "production" && {
     output: "standalone", // Creates a minimal server for deployment
@@ -46,4 +45,5 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+module.exports = nextConfig;
+
