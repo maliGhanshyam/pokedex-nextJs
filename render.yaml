@@ -3,8 +3,8 @@ services:
     name: pokedex
     env: node
     plan: free
-    buildCommand: npm install && npm run build
-    startCommand: npm start
+    buildCommand: cd client && npm install && npm run build
+    startCommand: cd client && node .next/standalone/server.js
     envVars:
       - key: NODE_ENV
         value: production
