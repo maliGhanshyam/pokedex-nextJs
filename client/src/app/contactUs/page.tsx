@@ -8,9 +8,9 @@ export default function ContactUsPage() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [formData, setFormData] = useState({
-    name: "",
+    name: "Ghanshyam", // Hardcoded name
     email: "",
-    subject: "",
+    mobile: "8999764387", // Default mobile number
     message: "",
   });
 
@@ -26,9 +26,9 @@ export default function ContactUsPage() {
       setShowLoginModal(true);
     };
 
-    window.addEventListener('showLoginModal', handleShowLoginModal);
+    window.addEventListener("showLoginModal", handleShowLoginModal);
     return () => {
-      window.removeEventListener('showLoginModal', handleShowLoginModal);
+      window.removeEventListener("showLoginModal", handleShowLoginModal);
     };
   }, []);
 
@@ -43,7 +43,7 @@ export default function ContactUsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Check if user is authenticated
     if (!isAuthenticated) {
       setShowLoginModal(true);
@@ -60,25 +60,34 @@ export default function ContactUsPage() {
       await contactApi.submitContact(formData);
       setSubmitStatus("success");
       setErrorMessage("");
-      setFormData({ name: "", email: "", subject: "", message: "" });
+      setFormData({
+        name: "Ghanshyam",
+        email: "",
+        mobile: "899900000",
+        message: "",
+      });
 
       // Reset success message after 5 seconds
       setTimeout(() => setSubmitStatus(null), 5000);
     } catch (error: any) {
       console.error("Error submitting contact form:", error);
       setSubmitStatus("error");
-      
+
       // Extract error message from NestJS validation errors
       if (error?.response?.data?.message) {
         const message = error.response.data.message;
         if (Array.isArray(message)) {
           // NestJS validation errors format
           const errors = message.map((err: any) => {
-            if (typeof err === 'string') return err;
+            if (typeof err === "string") return err;
             if (err?.constraints) {
               return Object.values(err.constraints).join(", ");
             }
-            return err?.property ? `${err.property}: ${Object.values(err.constraints || {}).join(", ")}` : String(err);
+            return err?.property
+              ? `${err.property}: ${Object.values(err.constraints || {}).join(
+                  ", "
+                )}`
+              : String(err);
           });
           setErrorMessage(errors.join(". "));
         } else {
@@ -92,7 +101,11 @@ export default function ContactUsPage() {
             if (err?.constraints) {
               return Object.values(err.constraints).join(", ");
             }
-            return err?.property ? `${err.property}: ${Object.values(err.constraints || {}).join(", ")}` : String(err);
+            return err?.property
+              ? `${err.property}: ${Object.values(err.constraints || {}).join(
+                  ", "
+                )}`
+              : String(err);
           });
           setErrorMessage(errors.join(". "));
         } else {
@@ -117,8 +130,9 @@ export default function ContactUsPage() {
             Get in Touch
           </h1>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Have a question, suggestion, or feedback? We&apos;d love to hear from you!
-            Reach out to us and we&apos;ll get back to you as soon as possible.
+            Have a question, suggestion, or feedback? We&apos;d love to hear
+            from you! Reach out to us and we&apos;ll get back to you as soon as
+            possible.
           </p>
         </div>
 
@@ -137,10 +151,10 @@ export default function ContactUsPage() {
                 <div>
                   <h3 className="font-semibold text-gray-800 mb-1">Email</h3>
                   <a
-                    href="mailto:contact@pokedex.com"
+                    href="mailto:ghanshyams.mali@gmail.com"
                     className="text-gray-600 hover:text-yellow-400 transition-colors"
                   >
-                    contact@pokedex.com
+                    ghanshyams.mali@gmail.com
                   </a>
                 </div>
               </div>
@@ -187,7 +201,8 @@ export default function ContactUsPage() {
             {!isAuthenticated && !authLoading && (
               <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <p className="text-yellow-800 text-sm mb-2">
-                  <strong>Login Required:</strong> You must be logged in to send a message.
+                  <strong>Login Required:</strong> You must be logged in to send
+                  a message.
                 </p>
                 <button
                   type="button"
@@ -212,9 +227,8 @@ export default function ContactUsPage() {
                   id="name"
                   name="name"
                   value={formData.name}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-400 focus:border-transparent outline-none transition"
+                  readOnly
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
                   placeholder="Your name"
                 />
               </div>
@@ -240,20 +254,20 @@ export default function ContactUsPage() {
 
               <div>
                 <label
-                  htmlFor="subject"
+                  htmlFor="mobile"
                   className="block text-sm font-semibold text-gray-700 mb-2"
                 >
-                  Subject
+                  Mobile No
                 </label>
                 <input
-                  type="text"
-                  id="subject"
-                  name="subject"
-                  value={formData.subject}
+                  type="tel"
+                  id="mobile"
+                  name="mobile"
+                  value={formData.mobile}
                   onChange={handleChange}
                   required
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-400 focus:border-transparent outline-none transition"
-                  placeholder={"What's this about?"}
+                  placeholder="899900000"
                 />
               </div>
 
@@ -284,7 +298,8 @@ export default function ContactUsPage() {
 
               {submitStatus === "error" && (
                 <div className="p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
-                  {errorMessage || "Something went wrong. Please try again later."}
+                  {errorMessage ||
+                    "Something went wrong. Please try again later."}
                 </div>
               )}
 
@@ -293,7 +308,11 @@ export default function ContactUsPage() {
                 disabled={isSubmitting || !isAuthenticated || authLoading}
                 className="w-full px-6 py-3 bg-gray-800 text-white font-semibold rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isSubmitting ? "Sending..." : !isAuthenticated ? "Login to Send Message" : "Send Message"}
+                {isSubmitting
+                  ? "Sending..."
+                  : !isAuthenticated
+                  ? "Login to Send Message"
+                  : "Send Message"}
               </button>
             </form>
           </div>
@@ -310,8 +329,9 @@ export default function ContactUsPage() {
                 How do I search for Pokémon?
               </h3>
               <p className="text-gray-600 text-sm">
-                Use the search bar in the navigation to find any Pokémon by name.
-                You can also browse through pages of Pokémon on the home page.
+                Use the search bar in the navigation to find any Pokémon by
+                name. You can also browse through pages of Pokémon on the home
+                page.
               </p>
             </div>
             <div>
@@ -337,7 +357,8 @@ export default function ContactUsPage() {
                 Is PokéDex free to use?
               </h3>
               <p className="text-gray-600 text-sm">
-                Absolutely! PokéDex is completely free to use. Login is required to send messages through the contact form.
+                Absolutely! PokéDex is completely free to use. Login is required
+                to send messages through the contact form.
               </p>
             </div>
           </div>
@@ -359,4 +380,3 @@ export default function ContactUsPage() {
     </div>
   );
 }
-

@@ -11,11 +11,11 @@ export class CreateContactDto {
   @IsEmail({}, { message: 'Email must be a valid email address' })
   email: string;
 
-  @IsNotEmpty({ message: 'Subject is required' })
-  @IsString({ message: 'Subject must be a string' })
-  @MinLength(3, { message: 'Subject must be at least 3 characters' })
-  @MaxLength(200, { message: 'Subject must be at most 200 characters' })
-  subject: string;
+  @IsNotEmpty({ message: 'Mobile number is required' })
+  @IsString({ message: 'Mobile number must be a string' })
+  @MinLength(10, { message: 'Mobile number must be at least 10 digits' })
+  @MaxLength(15, { message: 'Mobile number must be at most 15 digits' })
+  mobile: string;
 
   @IsNotEmpty({ message: 'Message is required' })
   @IsString({ message: 'Message must be a string' })
@@ -28,7 +28,7 @@ export class ContactResponseDto {
   id: string;
   name: string;
   email: string;
-  subject: string;
+  mobile: string;
   message: string;
   createdAt: Date;
 }

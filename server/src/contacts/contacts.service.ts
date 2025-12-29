@@ -20,7 +20,7 @@ export class ContactsService {
         id: savedContact.id,
         name: savedContact.name,
         email: savedContact.email,
-        subject: savedContact.subject,
+        mobile: savedContact.mobile,
         message: savedContact.message,
         createdAt: savedContact.createdAt,
       };
@@ -39,7 +39,7 @@ export class ContactsService {
         id: contact.id,
         name: contact.name,
         email: contact.email,
-        subject: contact.subject,
+        mobile: contact.mobile,
         message: contact.message,
         createdAt: contact.createdAt,
       }));
@@ -60,7 +60,7 @@ export class ContactsService {
         id: contact.id,
         name: contact.name,
         email: contact.email,
-        subject: contact.subject,
+        mobile: contact.mobile,
         message: contact.message,
         createdAt: contact.createdAt,
       };

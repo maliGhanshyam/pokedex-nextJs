@@ -17,7 +17,7 @@ export class Contact {
   email: string;
 
   @Column()
-  subject: string;
+  mobile: string;
 
   @Column('text')
   message: string;

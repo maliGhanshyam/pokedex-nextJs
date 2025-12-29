@@ -14,7 +14,7 @@ const isAxiosError = (error: unknown): error is {
 export interface CreateContactDto {
   name: string;
   email: string;
-  subject: string;
+  mobile: string;
   message: string;
 }
 
@@ -24,7 +24,7 @@ export interface ContactResponse {
     id: string;
     name: string;
     email: string;
-    subject: string;
+    mobile: string;
     message: string;
     createdAt: string;
   };
