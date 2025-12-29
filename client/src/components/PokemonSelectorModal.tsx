@@ -6,6 +6,37 @@ import { PokemonDetails } from '@/types/pokemon';
 import Image from 'next/image';
 import { PokemonSelectorItemSkeleton } from './SkeletonLoader';
 
+// Component to handle image loading with skeleton
+function PokemonImageWithSkeleton({ src, alt, width, height, className }: { 
+  src: string; 
+  alt: string; 
+  width: number; 
+  height: number; 
+  className?: string;
+}) {
+  const [imageLoading, setImageLoading] = useState(true);
+
+  return (
+    <div className="relative inline-block">
+      {imageLoading && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className={`bg-gray-200 rounded-lg animate-pulse`} style={{ width, height }}></div>
+        </div>
+      )}
+      <Image
+        src={src}
+        alt={alt}
+        width={width}
+        height={height}
+        className={`transition-opacity duration-300 ${imageLoading ? 'opacity-0' : 'opacity-100'} ${className || ''}`}
+        onLoad={() => setImageLoading(false)}
+        onError={() => setImageLoading(false)}
+        unoptimized
+      />
+    </div>
+  );
+}
+
 interface PokemonSelectorModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -137,14 +168,12 @@ export default function PokemonSelectorModal({
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
                     </div>
                   ) : null}
-                  <Image
+                  <PokemonImageWithSkeleton
                     src={pokemon.imageOfficial || pokemon.image}
                     alt={pokemon.name}
                     width={80}
                     height={80}
                     className="mx-auto pointer-events-none select-none"
-                    draggable={false}
-                    unoptimized
                   />
                   <div className="text-center mt-2 text-sm font-semibold capitalize pointer-events-none select-none">
                     {pokemon.name}

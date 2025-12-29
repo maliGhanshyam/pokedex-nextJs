@@ -30,6 +30,8 @@ export default function BattleModal({
   const [isAnimating, setIsAnimating] = useState(false);
   const [isLoadingPokemon1, setIsLoadingPokemon1] = useState(false);
   const [isLoadingPokemon2, setIsLoadingPokemon2] = useState(false);
+  const [image1Loading, setImage1Loading] = useState(true);
+  const [image2Loading, setImage2Loading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Reset state when modal closes
@@ -41,6 +43,8 @@ export default function BattleModal({
       setIsAnimating(false);
       setIsLoadingPokemon1(false);
       setIsLoadingPokemon2(false);
+      setImage1Loading(true);
+      setImage2Loading(true);
       setError(null);
     }
   }, [isOpen]);
@@ -49,12 +53,14 @@ export default function BattleModal({
   useEffect(() => {
     if (pokemon1) {
       setIsLoadingPokemon1(false);
+      setImage1Loading(true);
     }
   }, [pokemon1]);
 
   useEffect(() => {
     if (pokemon2) {
       setIsLoadingPokemon2(false);
+      setImage2Loading(true);
     }
   }, [pokemon2]);
 
@@ -157,13 +163,22 @@ export default function BattleModal({
                       <div className="text-xs text-gray-400">Loading...</div>
                     </div>
                   ) : pokemon1 ? (
-                    <div className="text-center animate-fadeIn">
+                    <div className="text-center animate-fadeIn relative">
+                      {image1Loading && (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="w-24 h-24 bg-gray-200 rounded-lg animate-pulse"></div>
+                        </div>
+                      )}
                       <Image
                         src={getPokemonImage(pokemon1)}
                         alt={pokemon1.name}
                         width={120}
                         height={120}
-                        className="mx-auto transition-opacity duration-300"
+                        className={`mx-auto transition-opacity duration-300 ${
+                          image1Loading ? 'opacity-0' : 'opacity-100'
+                        }`}
+                        onLoad={() => setImage1Loading(false)}
+                        onError={() => setImage1Loading(false)}
                       />
                       <h3 className="text-xl font-bold capitalize mt-2">
                         {pokemon1.name}
@@ -199,13 +214,22 @@ export default function BattleModal({
                       <div className="text-xs text-gray-400">Loading...</div>
                     </div>
                   ) : pokemon2 ? (
-                    <div className="text-center">
+                    <div className="text-center relative">
+                      {image2Loading && (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="w-24 h-24 bg-gray-200 rounded-lg animate-pulse"></div>
+                        </div>
+                      )}
                       <Image
                         src={getPokemonImage(pokemon2)}
                         alt={pokemon2.name}
                         width={120}
                         height={120}
-                        className="mx-auto"
+                        className={`mx-auto transition-opacity duration-300 ${
+                          image2Loading ? 'opacity-0' : 'opacity-100'
+                        }`}
+                        onLoad={() => setImage2Loading(false)}
+                        onError={() => setImage2Loading(false)}
                       />
                       <h3 className="text-xl font-bold capitalize mt-2">
                         {pokemon2.name}
@@ -261,18 +285,27 @@ export default function BattleModal({
               {/* Battle Animation */}
               <div className="grid grid-cols-2 gap-4 relative">
                 <div
-                  className={`text-center p-4 rounded-xl transition-all ${
+                  className={`text-center p-4 rounded-xl transition-all relative ${
                     isAnimating && currentLog[currentLog.length - 1]?.attacker === pokemon1?.name
                       ? 'bg-red-100 scale-105'
                       : 'bg-gray-50'
                   }`}
                 >
+                  {image1Loading && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="w-20 h-20 bg-gray-300 rounded-lg animate-pulse"></div>
+                    </div>
+                  )}
                   <Image
                     src={getPokemonImage(pokemon1)}
                     alt={pokemon1?.name || ''}
                     width={100}
                     height={100}
-                    className="mx-auto"
+                    className={`mx-auto transition-opacity duration-300 ${
+                      image1Loading ? 'opacity-0' : 'opacity-100'
+                    }`}
+                    onLoad={() => setImage1Loading(false)}
+                    onError={() => setImage1Loading(false)}
                   />
                   <div className="mt-2">
                     <div className="text-sm font-bold capitalize">{pokemon1?.name}</div>
@@ -288,18 +321,27 @@ export default function BattleModal({
                 </div>
 
                 <div
-                  className={`text-center p-4 rounded-xl transition-all ${
+                  className={`text-center p-4 rounded-xl transition-all relative ${
                     isAnimating && currentLog[currentLog.length - 1]?.attacker === pokemon2?.name
                       ? 'bg-red-100 scale-105'
                       : 'bg-gray-50'
                   }`}
                 >
+                  {image2Loading && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="w-20 h-20 bg-gray-300 rounded-lg animate-pulse"></div>
+                    </div>
+                  )}
                   <Image
                     src={getPokemonImage(pokemon2)}
                     alt={pokemon2?.name || ''}
                     width={100}
                     height={100}
-                    className="mx-auto"
+                    className={`mx-auto transition-opacity duration-300 ${
+                      image2Loading ? 'opacity-0' : 'opacity-100'
+                    }`}
+                    onLoad={() => setImage2Loading(false)}
+                    onError={() => setImage2Loading(false)}
                   />
                   <div className="mt-2">
                     <div className="text-sm font-bold capitalize">{pokemon2?.name}</div>

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { favoritesApi } from "@/services/api";
 import LoginModal from "@/components/LoginModal";
+import { PokemonCardSkeleton } from "@/components/SkeletonLoader";
 
 interface PokemonFlipCardProps {
   pokemon: {
@@ -21,6 +22,7 @@ export default function PokemonFlipCard({ pokemon, priority = false }: PokemonFl
   const [isFavorite, setIsFavorite] = useState(false);
   const [isLoadingFavorite, setIsLoadingFavorite] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [imageLoading, setImageLoading] = useState(true);
   const { isAuthenticated } = useAuth();
 
   useEffect(() => {
@@ -108,15 +110,26 @@ export default function PokemonFlipCard({ pokemon, priority = false }: PokemonFl
                 </svg>
               </div>
             )}
-            <Image
-              src={pokemon.imageOfficial || pokemon.image}
-              alt={pokemon.name}
-              width={100}
-              height={100}
-              className="mx-auto object-contain drop-shadow-md"
-              quality={90}
-              priority={priority}
-            />
+            <div className="relative w-24 h-24 mx-auto mb-3">
+              {imageLoading && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-full h-full bg-gray-300 rounded-lg animate-pulse"></div>
+                </div>
+              )}
+              <Image
+                src={pokemon.imageOfficial || pokemon.image}
+                alt={pokemon.name}
+                width={100}
+                height={100}
+                className={`mx-auto object-contain drop-shadow-md transition-opacity duration-300 ${
+                  imageLoading ? 'opacity-0' : 'opacity-100'
+                }`}
+                quality={90}
+                priority={priority}
+                onLoad={() => setImageLoading(false)}
+                onError={() => setImageLoading(false)}
+              />
+            </div>
             <span className="capitalize text-lg font-medium block mt-2">
               {pokemon.name}
             </span>

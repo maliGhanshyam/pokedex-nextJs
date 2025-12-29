@@ -29,6 +29,10 @@ export default function CompareModal({
   const [isLoadingPokemon1, setIsLoadingPokemon1] = useState(false);
   const [isLoadingPokemon2, setIsLoadingPokemon2] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [image1Loading, setImage1Loading] = useState(true);
+  const [image2Loading, setImage2Loading] = useState(true);
+  const [compareImage1Loading, setCompareImage1Loading] = useState(true);
+  const [compareImage2Loading, setCompareImage2Loading] = useState(true);
 
   // Reset state when modal closes
   useEffect(() => {
@@ -37,6 +41,10 @@ export default function CompareModal({
       setIsLoading(false);
       setIsLoadingPokemon1(false);
       setIsLoadingPokemon2(false);
+      setImage1Loading(true);
+      setImage2Loading(true);
+      setCompareImage1Loading(true);
+      setCompareImage2Loading(true);
       setError(null);
     }
   }, [isOpen]);
@@ -45,12 +53,14 @@ export default function CompareModal({
   useEffect(() => {
     if (pokemon1) {
       setIsLoadingPokemon1(false);
+      setImage1Loading(true);
     }
   }, [pokemon1]);
 
   useEffect(() => {
     if (pokemon2) {
       setIsLoadingPokemon2(false);
+      setImage2Loading(true);
     }
   }, [pokemon2]);
 
@@ -135,13 +145,22 @@ export default function CompareModal({
                       <div className="text-xs text-gray-400">Loading...</div>
                     </div>
                   ) : pokemon1 ? (
-                    <div className="text-center animate-fadeIn">
+                    <div className="text-center animate-fadeIn relative">
+                      {image1Loading && (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="w-24 h-24 bg-gray-200 rounded-lg animate-pulse"></div>
+                        </div>
+                      )}
                       <Image
                         src={getPokemonImage(pokemon1)}
                         alt={pokemon1.name}
                         width={120}
                         height={120}
-                        className="mx-auto transition-opacity duration-300"
+                        className={`mx-auto transition-opacity duration-300 ${
+                          image1Loading ? 'opacity-0' : 'opacity-100'
+                        }`}
+                        onLoad={() => setImage1Loading(false)}
+                        onError={() => setImage1Loading(false)}
                       />
                       <h3 className="text-xl font-bold capitalize mt-2">
                         {pokemon1.name}
@@ -175,13 +194,22 @@ export default function CompareModal({
                       <div className="text-xs text-gray-400">Loading...</div>
                     </div>
                   ) : pokemon2 ? (
-                    <div className="text-center animate-fadeIn">
+                    <div className="text-center animate-fadeIn relative">
+                      {image2Loading && (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="w-24 h-24 bg-gray-200 rounded-lg animate-pulse"></div>
+                        </div>
+                      )}
                       <Image
                         src={getPokemonImage(pokemon2)}
                         alt={pokemon2.name}
                         width={120}
                         height={120}
-                        className="mx-auto transition-opacity duration-300"
+                        className={`mx-auto transition-opacity duration-300 ${
+                          image2Loading ? 'opacity-0' : 'opacity-100'
+                        }`}
+                        onLoad={() => setImage2Loading(false)}
+                        onError={() => setImage2Loading(false)}
                       />
                       <h3 className="text-xl font-bold capitalize mt-2">
                         {pokemon2.name}
@@ -210,13 +238,22 @@ export default function CompareModal({
               {/* Stats Comparison */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-green-50 rounded-xl p-6 border-2 border-green-200">
-                  <div className="text-center mb-4">
+                  <div className="text-center mb-4 relative">
+                    {compareImage1Loading && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="w-20 h-20 bg-gray-300 rounded-lg animate-pulse"></div>
+                      </div>
+                    )}
                     <Image
                       src={getPokemonImage(pokemon1)}
                       alt={compareResult.pokemon1.name}
                       width={100}
                       height={100}
-                      className="mx-auto"
+                      className={`mx-auto transition-opacity duration-300 ${
+                        compareImage1Loading ? 'opacity-0' : 'opacity-100'
+                      }`}
+                      onLoad={() => setCompareImage1Loading(false)}
+                      onError={() => setCompareImage1Loading(false)}
                     />
                     <h3 className="text-2xl font-bold capitalize mt-2">
                       {compareResult.pokemon1.name}
@@ -262,13 +299,22 @@ export default function CompareModal({
                 </div>
 
                 <div className="bg-blue-50 rounded-xl p-6 border-2 border-blue-200">
-                  <div className="text-center mb-4">
+                  <div className="text-center mb-4 relative">
+                    {compareImage2Loading && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="w-20 h-20 bg-gray-300 rounded-lg animate-pulse"></div>
+                      </div>
+                    )}
                     <Image
                       src={getPokemonImage(pokemon2)}
                       alt={compareResult.pokemon2.name}
                       width={100}
                       height={100}
-                      className="mx-auto"
+                      className={`mx-auto transition-opacity duration-300 ${
+                        compareImage2Loading ? 'opacity-0' : 'opacity-100'
+                      }`}
+                      onLoad={() => setCompareImage2Loading(false)}
+                      onError={() => setCompareImage2Loading(false)}
                     />
                     <h3 className="text-2xl font-bold capitalize mt-2">
                       {compareResult.pokemon2.name}

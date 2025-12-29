@@ -7,6 +7,7 @@ import InfoChip from "./InfoChip";
 
 export default function PokemonCard({ pokemon }: { pokemon: PokemonDetails }) {
   const [isShiny, setIsShiny] = useState(false);
+  const [imageLoading, setImageLoading] = useState(true);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -27,14 +28,23 @@ export default function PokemonCard({ pokemon }: { pokemon: PokemonDetails }) {
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-orange-100 to-yellow-200 capitalize px-4 py-8">
       <div className="w-full max-w-md p-6 sm:p-10 bg-white rounded-3xl shadow-2xl transform hover:scale-105 transition duration-300">
         {/* Image Container */}
-        <div className="w-40 h-40 mx-auto mb-4 rounded-full bg-gradient-to-br from-orange-100 to-yellow-100 border-2 border-orange-200 p-4 flex items-center justify-center shadow-inner">
+        <div className="w-40 h-40 mx-auto mb-4 rounded-full bg-gradient-to-br from-orange-100 to-yellow-100 border-2 border-orange-200 p-4 flex items-center justify-center shadow-inner relative">
+          {imageLoading && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-24 h-24 bg-gray-300 rounded-lg animate-pulse"></div>
+            </div>
+          )}
           <Image
             src={imageUrl}
             alt={pokemon.name}
             width={112}
             height={112}
-            className="object-contain drop-shadow-md"
+            className={`object-contain drop-shadow-md transition-opacity duration-300 ${
+              imageLoading ? 'opacity-0' : 'opacity-100'
+            }`}
             quality={95}
+            onLoad={() => setImageLoading(false)}
+            onError={() => setImageLoading(false)}
           />
         </div>
 
