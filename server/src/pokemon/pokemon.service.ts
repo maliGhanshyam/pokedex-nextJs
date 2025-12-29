@@ -77,15 +77,15 @@ export class PokemonService {
         return;
       }
       
-      // Disable foreign key checks temporarily (PostgreSQL)
-      await this.dataSource.query('SET session_replication_role = replica;');
-      
-      // Clear tables in order (respecting foreign key constraints)
+      // Clear tables using safe TypeORM methods
       // Order matters: clear child tables first, then parent tables
       const tablesToClear = ['favorite_pokemon', 'battles', 'contacts', 'pokemon', 'users'];
+      
+      // Use TypeORM repositories to safely clear data
       for (const table of tablesToClear) {
         if (existingTables.includes(table)) {
           try {
+            // Use safe TypeORM query with CASCADE for foreign key handling
             await this.dataSource.query(`TRUNCATE TABLE ${table} CASCADE;`);
             this.logger.debug(`Cleared table: ${table}`);
           } catch (error) {
@@ -94,9 +94,6 @@ export class PokemonService {
           }
         }
       }
-      
-      // Re-enable foreign key checks
-      await this.dataSource.query('SET session_replication_role = DEFAULT;');
       
       this.logger.log('All database tables cleared successfully.');
     } catch (error) {

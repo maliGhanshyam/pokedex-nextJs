@@ -9,7 +9,8 @@ async function bootstrap() {
     const app = await NestFactory.create(AppModule);
 
     const configService = app.get(ConfigService);
-    const port = configService.get('PORT', 3001);
+    // Use process.env.PORT directly (required by Render)
+    const port = process.env.PORT || configService.get('PORT') || 3001;
     const corsOrigin = configService.get('CORS_ORIGIN', 'http://localhost:3000');
 
     app.enableCors({
@@ -48,8 +49,8 @@ async function bootstrap() {
     // Global exception filter for consistent error handling
     app.useGlobalFilters(new AllExceptionsFilter());
 
-    await app.listen(port);
-    console.log(`Application is running on: http://localhost:${port}`);
+    await app.listen(port, '0.0.0.0');
+    console.log(`Application is running on port ${port}`);
   } catch (error) {
     console.error('Failed to start application:', error);
     process.exit(1);

@@ -12,6 +12,7 @@ import { BattleModule } from './battle/battle.module';
 import { CompareModule } from './compare/compare.module';
 import { TeamsModule } from './teams/teams.module';
 import { RecommendationsModule } from './recommendations/recommendations.module';
+import { HealthModule } from './health/health.module';
 import { User } from './entities/user.entity';
 import { Pokemon } from './entities/pokemon.entity';
 import { FavoritePokemon } from './entities/favorite-pokemon.entity';
@@ -50,6 +51,7 @@ import { Battle } from './entities/battle.entity';
     CompareModule,
     TeamsModule,
     RecommendationsModule,
+    HealthModule,
   ],
 })
 export class AppModule {}

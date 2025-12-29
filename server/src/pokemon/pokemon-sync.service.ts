@@ -16,48 +16,49 @@ export class PokemonSyncService implements OnModuleInit {
   constructor(private pokemonService: PokemonService) {}
 
   async onModuleInit() {
-    this.logger.log('Application started, initializing database...');
+    this.logger.log('Application started, checking database...');
     
-    // Wait a bit to ensure database connection and schema synchronization is complete
-    // This is important when DB_SYNCHRONIZE=true is enabled
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    
-    try {
-      // Clear all tables at startup
-      await this.pokemonService.clearAllTables();
-      
-      // Check if tables exist and if there's data
-      const hasData = await this.pokemonService.hasData();
-      if (!hasData) {
-        this.logger.log('No Pokémon data found in database, triggering initial sync...');
-        await this.triggerStartupSync();
-      } else {
-        this.logger.log('Pokémon data already exists in database, skipping startup sync.');
+    // Make startup lightweight - don't block app startup
+    // Run sync check asynchronously after a short delay
+    setTimeout(async () => {
+      try {
+        // Check if tables exist and if there's data
+        const hasData = await this.pokemonService.hasData();
+        if (!hasData) {
+          this.logger.log('No Pokémon data found in database, triggering background sync...');
+          // Run sync in background - don't await to avoid blocking startup
+          this.triggerStartupSync().catch((error) => {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            this.logger.error(`Background sync failed: ${errorMessage}`);
+          });
+        } else {
+          this.logger.log('Pokémon data already exists in database, skipping startup sync.');
+        }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        
+        // Check if error is due to missing tables (database not initialized)
+        if (errorMessage.includes('relation') && errorMessage.includes('does not exist')) {
+          this.logger.warn(
+            '⚠️  Database tables do not exist yet. To create them:',
+          );
+          this.logger.warn(
+            '   1. Go to your backend service on Render → Settings → Environment',
+          );
+          this.logger.warn(
+            '   2. Add: DB_SYNCHRONIZE=true',
+          );
+          this.logger.warn(
+            '   3. Save and wait for redeploy',
+          );
+          this.logger.warn(
+            '   Once tables are created, the sync will run automatically on next startup.',
+          );
+        } else {
+          this.logger.error(`Startup check failed: ${errorMessage}`);
+        }
       }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      
-      // Check if error is due to missing tables (database not initialized)
-      if (errorMessage.includes('relation') && errorMessage.includes('does not exist')) {
-        this.logger.warn(
-          '⚠️  Database tables do not exist yet. To create them:',
-        );
-        this.logger.warn(
-          '   1. Go to your backend service on Render → Settings → Environment',
-        );
-        this.logger.warn(
-          '   2. Add: DB_SYNCHRONIZE=true',
-        );
-        this.logger.warn(
-          '   3. Save and wait for redeploy',
-        );
-        this.logger.warn(
-          '   Once tables are created, the sync will run automatically on next startup.',
-        );
-      } else {
-        this.logger.error(`Startup initialization failed: ${errorMessage}`);
-      }
-    }
+    }, 2000); // Short delay to ensure DB connection is ready, but don't block startup
   }
 
   @Cron(CronExpression.EVERY_DAY_AT_2AM)

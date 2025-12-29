@@ -5,7 +5,11 @@ import type {
   PokemonListResult,
 } from "@/types/pokemon";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+// Get API base URL from environment variable
+// In production, this should be set via NEXT_PUBLIC_API_URL
+// Never use localhost in production code
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 
+  (typeof window !== 'undefined' ? window.location.origin.replace(/:\d+$/, ':3001') : 'http://localhost:3001');
 // Increase timeout for Render.com free tier which can take 30-60 seconds to wake up
 const API_TIMEOUT = parseInt(process.env.NEXT_PUBLIC_API_TIMEOUT || "60000", 10);
 
