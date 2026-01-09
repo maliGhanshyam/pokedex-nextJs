@@ -44,6 +44,144 @@ export class PokemonService {
     }
   }
 
+  /**
+   * Check if incremental sync is needed
+   * Returns true if we have less than expected Pokemon count (e.g., < 1000)
+   */
+  async needsIncrementalSync(): Promise<boolean> {
+    try {
+      const count = await this.pokemonRepository.count();
+      // If we have less than 1000 Pokemon, we likely need to sync more
+      // PokeAPI has ~1000+ Pokemon, so this is a reasonable threshold
+      const expectedMinCount = 1000;
+      return count < expectedMinCount;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('relation') && errorMessage.includes('does not exist')) {
+        return true; // Need sync if table doesn't exist
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Incremental sync - only syncs Pokemon that don't exist in the database
+   */
+  async syncPokemonIncremental(): Promise<{ synced: number; errors: number }> {
+    this.logger.log('Starting incremental Pokémon sync job...');
+    
+    // First, verify that the pokemon table exists
+    try {
+      await this.pokemonRepository.count();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('relation') && errorMessage.includes('does not exist')) {
+        this.logger.error('Cannot sync: pokemon table does not exist. Please enable DB_SYNCHRONIZE=true and redeploy.');
+        throw new Error('Database tables do not exist. Please enable DB_SYNCHRONIZE=true in environment variables.');
+      }
+      throw error;
+    }
+    
+    let synced = 0;
+    let errors = 0;
+    const batchSize = 20;
+    let offset = 0;
+    let hasMore = true;
+    const maxSyncLimit = 10000; // Safety limit to prevent infinite loops
+
+    try {
+      while (hasMore && offset < maxSyncLimit) {
+        try {
+          const listResponse = await this.fetchPokemonList(offset, batchSize);
+          const pokemonList = listResponse.results;
+
+          if (pokemonList.length === 0) {
+            hasMore = false;
+            break;
+          }
+
+          for (const pokemonResult of pokemonList) {
+            try {
+              // Extract Pokemon ID from URL (e.g., "https://pokeapi.co/api/v2/pokemon/1/")
+              const pokemonIdMatch = pokemonResult.url.match(/\/pokemon\/(\d+)\//);
+              if (!pokemonIdMatch) {
+                this.logger.warn(`Could not extract ID from URL: ${pokemonResult.url}`);
+                continue;
+              }
+              const pokemonId = parseInt(pokemonIdMatch[1], 10);
+
+              // Check if Pokemon already exists in database
+              const existing = await this.pokemonRepository.findOne({
+                where: { id: pokemonId },
+              });
+
+              if (existing) {
+                // Skip if already exists
+                continue;
+              }
+
+              // Sync only if missing
+              await this.syncSinglePokemon(pokemonResult.url);
+              synced++;
+              
+              // Log progress every 50 pokemon
+              if (synced % 50 === 0) {
+                this.logger.log(`Incremental sync: Synced ${synced} new Pokémon so far...`);
+              }
+              
+              // Add delay between requests to avoid rate limiting
+              await this.sleep(600);
+            } catch (error) {
+              errors++;
+              const errorMessage = error instanceof Error ? error.message : String(error);
+              
+              // If table doesn't exist, stop syncing immediately
+              if (errorMessage.includes('relation') && errorMessage.includes('does not exist')) {
+                this.logger.error(`Cannot continue sync: pokemon table does not exist. Stopped at ${synced} Pokémon.`);
+                hasMore = false;
+                break;
+              }
+              
+              this.logger.error(
+                `Error syncing ${pokemonResult.name}: ${errorMessage}`,
+              );
+              
+              // Stop if too many errors occur
+              if (errors > 10 && synced === 0) {
+                this.logger.error('Too many errors, stopping sync.');
+                hasMore = false;
+                break;
+              }
+            }
+          }
+
+          if (!listResponse.next) {
+            hasMore = false;
+          } else {
+            offset += batchSize;
+          }
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          this.logger.error(
+            `Error fetching Pokémon list at offset ${offset}: ${errorMessage}`,
+          );
+          errors++;
+          hasMore = false;
+        }
+      }
+
+      this.logger.log(
+        `Incremental Pokémon sync completed. Synced: ${synced}, Errors: ${errors}`,
+      );
+      return { synced, errors };
+    } catch (error) {
+      this.logger.error(
+        `Fatal error in incremental Pokémon sync: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      throw error;
+    }
+  }
+
   async clearAllTables(): Promise<void> {
     try {
       this.logger.log('Clearing all database tables...');
@@ -256,6 +394,10 @@ export class PokemonService {
               if (synced % 50 === 0) {
                 this.logger.log(`Synced ${synced} Pokémon so far...`);
               }
+              
+              // Add delay between requests to avoid rate limiting
+              // PokeAPI allows ~100 requests per minute, so ~600ms delay is safe
+              await this.sleep(600);
             } catch (error) {
               errors++;
               const errorMessage = error instanceof Error ? error.message : String(error);
@@ -307,23 +449,74 @@ export class PokemonService {
     }
   }
 
+  /**
+   * Retry helper with exponential backoff for handling rate limits
+   */
+  private async retryWithBackoff<T>(
+    fn: () => Promise<T>,
+    maxRetries = 3,
+    baseDelay = 1000,
+  ): Promise<T> {
+    let lastError: Error | null = null;
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        return await fn();
+      } catch (error: any) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        
+        // Check if it's a rate limit error (429)
+        const isRateLimit = error?.response?.status === 429 || 
+                           error?.status === 429 ||
+                           error?.message?.includes('429');
+        
+        if (isRateLimit && attempt < maxRetries - 1) {
+          // Exponential backoff: 1s, 2s, 4s, etc.
+          const delay = baseDelay * Math.pow(2, attempt);
+          this.logger.warn(
+            `Rate limited (429). Retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`,
+          );
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          continue;
+        }
+        
+        // For non-rate-limit errors or final attempt, throw immediately
+        throw error;
+      }
+    }
+
+    throw lastError || new Error('Failed after retries');
+  }
+
+  /**
+   * Sleep helper for rate limiting
+   */
+  private async sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
   private async fetchPokemonList(
     offset: number,
     limit: number,
   ): Promise<PokemonListResponseDto> {
     const url = `${this.pokeApiBaseUrl}/pokemon?limit=${limit}&offset=${offset}`;
-    const response = await firstValueFrom(
-      this.httpService.get<PokemonListResponseDto>(url),
-    );
-    return response.data;
+    
+    return this.retryWithBackoff(async () => {
+      const response = await firstValueFrom(
+        this.httpService.get<PokemonListResponseDto>(url),
+      );
+      return response.data;
+    });
   }
 
   private async syncSinglePokemon(url: string): Promise<void> {
     try {
-      const response = await firstValueFrom(
-        this.httpService.get<PokemonDetailsDto>(url),
-      );
-      const pokemonData = response.data;
+      const pokemonData = await this.retryWithBackoff(async () => {
+        const response = await firstValueFrom(
+          this.httpService.get<PokemonDetailsDto>(url),
+        );
+        return response.data;
+      });
 
       const pokemonId = pokemonData.id;
       const pokemonName = pokemonData.name.toLowerCase();

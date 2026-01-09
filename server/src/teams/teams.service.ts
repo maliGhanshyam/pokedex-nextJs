@@ -21,11 +21,11 @@ export class TeamsService {
         throw new NotFoundException('No Pokémon IDs provided');
       }
 
-      const pokemonList = await Promise.all(
-        teamDto.pokemonIds.map((id) =>
-          this.pokemonRepository.findOne({ where: { id } }),
-        ),
-      );
+    const pokemonList = await Promise.all(
+      teamDto.pokemonIds.map((id) =>
+        this.pokemonRepository.findOne({ where: { id } }),
+      ),
+    );
 
       const missingIndices: number[] = [];
       pokemonList.forEach((p, index) => {
@@ -38,7 +38,7 @@ export class TeamsService {
         throw new NotFoundException(
           `Pokémon with IDs ${missingIndices.join(', ')} not found`
         );
-      }
+    }
 
     const teamData = pokemonList.map((p) => ({
       id: p!.id,

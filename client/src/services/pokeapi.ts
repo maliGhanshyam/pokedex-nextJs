@@ -94,6 +94,8 @@ export const getPokemonList = async (
           errorMessage = "Backend server is temporarily unavailable (503 Service Unavailable). The server may be overloaded or under maintenance. Please try again in a moment.";
         } else if (status === 504) {
           errorMessage = `Request timed out (504 Gateway Timeout). The backend server at ${API_BASE_URL} took too long to respond. This may happen on Render.com free tier during cold starts. Please try again.`;
+        } else if (status === 429) {
+          errorMessage = "Rate limit exceeded (429). The API is temporarily rate-limited. Please wait a moment and try again. The system will automatically retry with backoff.";
         } else if (status === 404) {
           errorMessage = "Pokémon data not found. Please ensure the backend sync has completed.";
         } else if (status >= 500) {

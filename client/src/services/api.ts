@@ -63,7 +63,7 @@ api.interceptors.response.use(
           localStorage.setItem('refreshToken', newRefreshToken);
 
           if (originalRequest.headers) {
-            originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+          originalRequest.headers.Authorization = `Bearer ${accessToken}`;
           }
           return api(originalRequest);
         }
@@ -194,8 +194,8 @@ const getAuthErrorMessage = (error: unknown): string => {
 export const authApi = {
   login: async (credentials: LoginDto): Promise<AuthResponse> => {
     try {
-      const response = await api.post<AuthResponse>('/auth/login', credentials);
-      return response.data;
+    const response = await api.post<AuthResponse>('/auth/login', credentials);
+    return response.data;
     } catch (error) {
       const errorMessage = getAuthErrorMessage(error);
       const customError = new Error(errorMessage);
@@ -206,8 +206,8 @@ export const authApi = {
 
   signup: async (data: SignupDto): Promise<AuthResponse> => {
     try {
-      const response = await api.post<AuthResponse>('/auth/signup', data);
-      return response.data;
+    const response = await api.post<AuthResponse>('/auth/signup', data);
+    return response.data;
     } catch (error) {
       const errorMessage = getAuthErrorMessage(error);
       const customError = new Error(errorMessage);
@@ -218,13 +218,13 @@ export const authApi = {
 
   logout: async (): Promise<void> => {
     try {
-      await api.post('/auth/logout');
+    await api.post('/auth/logout');
     } catch (error) {
       // Log error but don't throw - always clear local storage
       console.error('Logout error:', error);
     } finally {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
     }
   },
 };
@@ -270,7 +270,7 @@ export const favoritesApi = {
   getFavorites: async (): Promise<any[]> => {
     try {
       const response = await api.get<any[]>('/favorites');
-      return response.data;
+    return response.data;
     } catch (error) {
       const errorMessage = getFavoritesErrorMessage(error, 'loading favorites');
       const customError = new Error(errorMessage);
@@ -281,7 +281,7 @@ export const favoritesApi = {
 
   addFavorite: async (pokemonId: number): Promise<void> => {
     try {
-      await api.post(`/favorites/${pokemonId}`);
+    await api.post(`/favorites/${pokemonId}`);
     } catch (error) {
       const errorMessage = getFavoritesErrorMessage(error, 'adding favorite');
       const customError = new Error(errorMessage);
@@ -292,7 +292,7 @@ export const favoritesApi = {
 
   removeFavorite: async (pokemonId: number): Promise<void> => {
     try {
-      await api.delete(`/favorites/${pokemonId}`);
+    await api.delete(`/favorites/${pokemonId}`);
     } catch (error) {
       const errorMessage = getFavoritesErrorMessage(error, 'removing favorite');
       const customError = new Error(errorMessage);
@@ -305,8 +305,8 @@ export const favoritesApi = {
 export const usersApi = {
   getProfile: async (): Promise<UserProfile> => {
     try {
-      const response = await api.get<UserProfile>('/users/profile');
-      return response.data;
+    const response = await api.get<UserProfile>('/users/profile');
+    return response.data;
     } catch (error) {
       let errorMessage = 'Failed to load user profile.';
       

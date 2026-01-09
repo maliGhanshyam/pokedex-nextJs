@@ -13,17 +13,17 @@ export class ContactsService {
 
   async create(createContactDto: CreateContactDto): Promise<ContactResponseDto> {
     try {
-      const contact = this.contactRepository.create(createContactDto);
-      const savedContact = await this.contactRepository.save(contact);
-      
-      return {
-        id: savedContact.id,
-        name: savedContact.name,
-        email: savedContact.email,
+    const contact = this.contactRepository.create(createContactDto);
+    const savedContact = await this.contactRepository.save(contact);
+    
+    return {
+      id: savedContact.id,
+      name: savedContact.name,
+      email: savedContact.email,
         mobile: savedContact.mobile,
-        message: savedContact.message,
-        createdAt: savedContact.createdAt,
-      };
+      message: savedContact.message,
+      createdAt: savedContact.createdAt,
+    };
     } catch (error) {
       throw new Error(`Failed to create contact: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
@@ -31,18 +31,18 @@ export class ContactsService {
 
   async findAll(): Promise<ContactResponseDto[]> {
     try {
-      const contacts = await this.contactRepository.find({
-        order: { createdAt: 'DESC' },
-      });
+    const contacts = await this.contactRepository.find({
+      order: { createdAt: 'DESC' },
+    });
 
-      return contacts.map((contact) => ({
-        id: contact.id,
-        name: contact.name,
-        email: contact.email,
+    return contacts.map((contact) => ({
+      id: contact.id,
+      name: contact.name,
+      email: contact.email,
         mobile: contact.mobile,
-        message: contact.message,
-        createdAt: contact.createdAt,
-      }));
+      message: contact.message,
+      createdAt: contact.createdAt,
+    }));
     } catch (error) {
       throw new Error(`Failed to retrieve contacts: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
@@ -50,20 +50,20 @@ export class ContactsService {
 
   async findOne(id: string): Promise<ContactResponseDto | null> {
     try {
-      const contact = await this.contactRepository.findOne({ where: { id } });
-      
-      if (!contact) {
-        return null;
-      }
+    const contact = await this.contactRepository.findOne({ where: { id } });
+    
+    if (!contact) {
+      return null;
+    }
 
-      return {
-        id: contact.id,
-        name: contact.name,
-        email: contact.email,
+    return {
+      id: contact.id,
+      name: contact.name,
+      email: contact.email,
         mobile: contact.mobile,
-        message: contact.message,
-        createdAt: contact.createdAt,
-      };
+      message: contact.message,
+      createdAt: contact.createdAt,
+    };
     } catch (error) {
       throw new Error(`Failed to retrieve contact: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }

@@ -22,39 +22,39 @@ export class PokemonSyncService implements OnModuleInit {
     // Run sync check asynchronously after a short delay
     setTimeout(async () => {
       try {
-        // Check if tables exist and if there's data
-        const hasData = await this.pokemonService.hasData();
-        if (!hasData) {
+      // Check if tables exist and if there's data
+      const hasData = await this.pokemonService.hasData();
+      if (!hasData) {
           this.logger.log('No Pokémon data found in database, triggering background sync...');
           // Run sync in background - don't await to avoid blocking startup
           this.triggerStartupSync().catch((error) => {
             const errorMessage = error instanceof Error ? error.message : String(error);
             this.logger.error(`Background sync failed: ${errorMessage}`);
           });
-        } else {
-          this.logger.log('Pokémon data already exists in database, skipping startup sync.');
-        }
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        
-        // Check if error is due to missing tables (database not initialized)
-        if (errorMessage.includes('relation') && errorMessage.includes('does not exist')) {
-          this.logger.warn(
-            '⚠️  Database tables do not exist yet. To create them:',
-          );
-          this.logger.warn(
-            '   1. Go to your backend service on Render → Settings → Environment',
-          );
-          this.logger.warn(
-            '   2. Add: DB_SYNCHRONIZE=true',
-          );
-          this.logger.warn(
-            '   3. Save and wait for redeploy',
-          );
-          this.logger.warn(
-            '   Once tables are created, the sync will run automatically on next startup.',
-          );
-        } else {
+      } else {
+        this.logger.log('Pokémon data already exists in database, skipping startup sync.');
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      // Check if error is due to missing tables (database not initialized)
+      if (errorMessage.includes('relation') && errorMessage.includes('does not exist')) {
+        this.logger.warn(
+          '⚠️  Database tables do not exist yet. To create them:',
+        );
+        this.logger.warn(
+          '   1. Go to your backend service on Render → Settings → Environment',
+        );
+        this.logger.warn(
+          '   2. Add: DB_SYNCHRONIZE=true',
+        );
+        this.logger.warn(
+          '   3. Save and wait for redeploy',
+        );
+        this.logger.warn(
+          '   Once tables are created, the sync will run automatically on next startup.',
+        );
+      } else {
           this.logger.error(`Startup check failed: ${errorMessage}`);
         }
       }
@@ -72,15 +72,43 @@ export class PokemonSyncService implements OnModuleInit {
     this.logger.log('Starting scheduled Pokémon sync job...');
 
     try {
-      const result = await this.pokemonService.syncPokemon();
-      this.lastStatus = {
-        ...result,
-        timestamp: new Date(),
-      };
-      this.lastRun = new Date();
-      this.logger.log(
-        `Scheduled sync completed. Synced: ${result.synced}, Errors: ${result.errors}`,
-      );
+      // Check if data exists before syncing
+      const hasData = await this.pokemonService.hasData();
+      if (!hasData) {
+        this.logger.log('No Pokémon data found in database, starting sync...');
+        const result = await this.pokemonService.syncPokemon();
+        this.lastStatus = {
+          ...result,
+          timestamp: new Date(),
+        };
+        this.lastRun = new Date();
+        this.logger.log(
+          `Scheduled sync completed. Synced: ${result.synced}, Errors: ${result.errors}`,
+        );
+      } else {
+        // Check if we need to sync missing data (incremental sync)
+        const needsSync = await this.pokemonService.needsIncrementalSync();
+        if (needsSync) {
+          this.logger.log('Incremental sync needed, syncing missing Pokémon...');
+          const result = await this.pokemonService.syncPokemonIncremental();
+          this.lastStatus = {
+            ...result,
+            timestamp: new Date(),
+          };
+          this.lastRun = new Date();
+          this.logger.log(
+            `Incremental sync completed. Synced: ${result.synced}, Errors: ${result.errors}`,
+          );
+        } else {
+          this.logger.log('Database is up to date, skipping sync.');
+          this.lastStatus = {
+            synced: 0,
+            errors: 0,
+            timestamp: new Date(),
+          };
+          this.lastRun = new Date();
+        }
+      }
     } catch (error) {
       this.logger.error(
         `Scheduled sync failed: ${error instanceof Error ? error.message : String(error)}`,

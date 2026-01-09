@@ -151,6 +151,10 @@ const getErrorMessage = (error: unknown, defaultMessage: string): string => {
         return 'Service temporarily unavailable. Please try again in a moment.';
       }
       
+      if (status === 429) {
+        return 'Rate limit exceeded. Please wait a moment and try again.';
+      }
+      
       return data.message || `Request failed with status ${status}`;
     }
     
@@ -173,8 +177,8 @@ const getErrorMessage = (error: unknown, defaultMessage: string): string => {
 export const battleApi = {
   simulate: async (battle: BattleRequest): Promise<BattleResponse> => {
     try {
-      const response = await api.post<BattleResponse>('/battle/simulate', battle);
-      return response.data;
+    const response = await api.post<BattleResponse>('/battle/simulate', battle);
+    return response.data;
     } catch (error) {
       const errorMessage = getErrorMessage(error, 'Failed to simulate battle. Please try again.');
       const customError = new Error(errorMessage);
@@ -184,8 +188,8 @@ export const battleApi = {
   },
   getHistory: async (limit = 10) => {
     try {
-      const response = await api.get(`/battle/history?limit=${limit}`);
-      return response.data;
+    const response = await api.get(`/battle/history?limit=${limit}`);
+    return response.data;
     } catch (error) {
       const errorMessage = getErrorMessage(error, 'Failed to load battle history. Please try again.');
       const customError = new Error(errorMessage);
@@ -198,8 +202,8 @@ export const battleApi = {
 export const compareApi = {
   compare: async (compare: CompareRequest): Promise<CompareResponse> => {
     try {
-      const response = await api.post<CompareResponse>('/compare', compare);
-      return response.data;
+    const response = await api.post<CompareResponse>('/compare', compare);
+    return response.data;
     } catch (error) {
       const errorMessage = getErrorMessage(error, 'Failed to compare Pokémon. Please try again.');
       const customError = new Error(errorMessage);
@@ -212,8 +216,8 @@ export const compareApi = {
 export const teamsApi = {
   evaluate: async (team: TeamEvaluateRequest): Promise<TeamResponse> => {
     try {
-      const response = await api.post<TeamResponse>('/teams/evaluate', team);
-      return response.data;
+    const response = await api.post<TeamResponse>('/teams/evaluate', team);
+    return response.data;
     } catch (error) {
       const errorMessage = getErrorMessage(error, 'Failed to evaluate team. Please try again.');
       const customError = new Error(errorMessage);
@@ -226,8 +230,8 @@ export const teamsApi = {
 export const recommendationsApi = {
   getRecommendations: async (limit = 10) => {
     try {
-      const response = await api.get(`/recommendations?limit=${limit}`);
-      return response.data;
+    const response = await api.get(`/recommendations?limit=${limit}`);
+    return response.data;
     } catch (error) {
       const errorMessage = getErrorMessage(error, 'Failed to load recommendations. Please try again.');
       const customError = new Error(errorMessage);

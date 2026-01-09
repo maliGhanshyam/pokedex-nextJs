@@ -134,14 +134,29 @@ npm run start:prod
 - `POST /admin/sync-pokemon` - Manually trigger Pokémon sync
 - `GET /admin/cron-status` - Get cron job status
 
-## Cron Jobs
+## Architecture
 
-The application includes a scheduled cron job that runs daily at 2 AM to sync Pokémon data from PokéAPI. The job:
+### Database-First Design
+- **All API endpoints read from the database only** - never call PokeAPI directly
+- **PokeAPI is only used during sync operations** - keeps the API fast and reliable
+- **All calculations and operations use cached database data**
+
+### Cron Jobs
+
+The application includes a scheduled cron job that runs daily at 2 AM. The job:
+- **Checks if data exists** before syncing (skips if database is populated)
+- **Performs incremental sync** - only syncs missing Pokémon data
 - Fetches Pokémon list using pagination
 - Fetches detailed data for each Pokémon
 - Upserts data into PostgreSQL
+- Handles rate limiting with exponential backoff
 - Handles errors gracefully
 - Logs execution status
+
+**Sync Behavior:**
+- On startup: Checks if database has data, syncs only if empty
+- Daily cron: Checks if data exists, performs incremental sync if needed (only syncs missing Pokémon)
+- Manual sync: Available via `/admin/sync-pokemon` endpoint (requires authentication)
 
 ## Environment Variables
 

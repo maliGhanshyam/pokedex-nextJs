@@ -18,11 +18,11 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <ErrorBoundary>
-          <Providers>
-            <Navbar />
-            {children}
-            <Footer />
-          </Providers>
+        <Providers>
+          <Navbar />
+          {children}
+          <Footer />
+        </Providers>
         </ErrorBoundary>
       </body>
     </html>

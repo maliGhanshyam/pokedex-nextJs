@@ -21,21 +21,21 @@ export class UsersController {
   @Get('profile')
   async getProfile(@CurrentUser() user: User) {
     try {
-      const userData = await this.usersService.findOne(user.id);
-      if (!userData) {
+    const userData = await this.usersService.findOne(user.id);
+    if (!userData) {
         throw new NotFoundException('User profile not found');
-      }
+    }
 
-      const favorites = await this.favoritesService.getUserFavorites(user.id);
+    const favorites = await this.favoritesService.getUserFavorites(user.id);
 
-      return {
-        id: userData.id,
-        email: userData.email,
-        name: userData.name,
-        username: userData.username,
-        createdAt: userData.createdAt,
-        favorites,
-      };
+    return {
+      id: userData.id,
+      email: userData.email,
+      name: userData.name,
+      username: userData.username,
+      createdAt: userData.createdAt,
+      favorites,
+    };
     } catch (error) {
       // Re-throw known exceptions, wrap others
       if (error instanceof NotFoundException) {

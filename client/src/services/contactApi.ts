@@ -82,8 +82,8 @@ const getErrorMessage = (error: unknown): string => {
 export const contactApi = {
   submitContact: async (data: CreateContactDto): Promise<ContactResponse> => {
     try {
-      const response = await api.post<ContactResponse>('/contacts', data);
-      return response.data;
+    const response = await api.post<ContactResponse>('/contacts', data);
+    return response.data;
     } catch (error) {
       const errorMessage = getErrorMessage(error);
       const customError = new Error(errorMessage);
