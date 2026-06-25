@@ -1,7 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
+
+const DEMO_EMAIL = 'demo@example.com';
+const DEMO_PASSWORD = 'password123';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -9,14 +12,22 @@ interface LoginModalProps {
 }
 
 export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState(DEMO_EMAIL);
+  const [password, setPassword] = useState(DEMO_PASSWORD);
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSignup, setIsSignup] = useState(false);
   const { login, signup } = useAuth();
+
+  useEffect(() => {
+    if (isOpen && !isSignup) {
+      setEmail(DEMO_EMAIL);
+      setPassword(DEMO_PASSWORD);
+      setError('');
+    }
+  }, [isOpen, isSignup]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,15 +41,36 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
         await login(email, password);
       }
       onClose();
-      setEmail('');
-      setPassword('');
       setName('');
       setUsername('');
-    } catch (err: any) {
-      setError(
-        err.response?.data?.message || 
-        `Failed to ${isSignup ? 'sign up' : 'log in'}. Please try again.`
-      );
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : (err as { response?: { data?: { message?: string } } })?.response
+              ?.data?.message;
+      setError(message || `Failed to ${isSignup ? 'sign up' : 'log in'}. Please try again.`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDemoLogin = async () => {
+    setEmail(DEMO_EMAIL);
+    setPassword(DEMO_PASSWORD);
+    setError('');
+    setIsLoading(true);
+
+    try {
+      await login(DEMO_EMAIL, DEMO_PASSWORD);
+      onClose();
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : (err as { response?: { data?: { message?: string } } })?.response
+              ?.data?.message;
+      setError(message || 'Demo login failed. Wait a moment for the server to finish starting, then try again.');
     } finally {
       setIsLoading(false);
     }
@@ -138,6 +170,17 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
           </button>
         </form>
 
+        {!isSignup && (
+          <button
+            type="button"
+            onClick={handleDemoLogin}
+            disabled={isLoading}
+            className="mt-3 w-full border-2 border-orange-400 bg-orange-50 text-orange-700 py-2 px-4 rounded-lg font-semibold hover:bg-orange-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Enter as Demo Trainer
+          </button>
+        )}
+
         <div className="mt-4 text-center">
           <button
             type="button"
@@ -146,6 +189,13 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
               setError('');
               setName('');
               setUsername('');
+              if (!isSignup) {
+                setEmail('');
+                setPassword('');
+              } else {
+                setEmail(DEMO_EMAIL);
+                setPassword(DEMO_PASSWORD);
+              }
             }}
             className="text-sm text-orange-600 hover:text-orange-700"
           >
@@ -157,19 +207,12 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
 
         {!isSignup && (
           <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-sm text-blue-800">
-              <strong>Demo Account:</strong>
-            </p>
-            <p className="text-sm text-blue-700">
-              Email: demo@example.com
-            </p>
-            <p className="text-sm text-blue-700">
-              Password: password123
-            </p>
+            <p className="text-sm text-blue-800 font-medium">Demo credentials (pre-filled)</p>
+            <p className="text-sm text-blue-700 mt-1">{DEMO_EMAIL}</p>
+            <p className="text-sm text-blue-700">{DEMO_PASSWORD}</p>
           </div>
         )}
       </div>
     </div>
   );
 }
-

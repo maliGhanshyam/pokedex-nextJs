@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getPokemonList } from "@/services/pokeapi";
 import { SearchParams } from "@/types/propsInterface";
 import PokemonFlipCard from "@/components/PokemonFlipCard";
+import LivePagination from "@/components/LivePagination";
 
 const PAGE_SIZE = 15;
 const MAX_VISIBLE_PAGES = 5;
@@ -110,15 +111,6 @@ export default async function HomePage({ searchParams }: SearchParams) {
 
   // Use correct count
   const totalCount = searchTerm ? filteredResults.length : data.count;
-  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
-
-  // Pagination range
-  const half = Math.floor(MAX_VISIBLE_PAGES / 2);
-  let start = Math.max(1, currentPage - half);
-  const end = Math.min(totalPages, start + MAX_VISIBLE_PAGES - 1);
-  if (end - start < MAX_VISIBLE_PAGES - 1) {
-    start = Math.max(1, end - MAX_VISIBLE_PAGES + 1);
-  }
 
   return (
     <div className="p-4 sm:p-8 bg-gradient-to-br from-orange-100 to-yellow-200 min-h-screen">
@@ -133,45 +125,13 @@ export default async function HomePage({ searchParams }: SearchParams) {
         ))}
       </ul>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="mt-8 flex flex-wrap justify-center sm:justify-end items-center gap-2 px-4">
-          {currentPage > 1 && (
-            <Link
-              href={`/?page=${currentPage - 1}&search=${searchTerm}`}
-              className="px-3 py-1 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
-            >
-              Previous
-            </Link>
-          )}
-
-          {Array.from({ length: end - start + 1 }, (_, i) => {
-            const page = start + i;
-            return (
-              <Link
-                key={page}
-                href={`/?page=${page}&search=${searchTerm}`}
-                className={`px-3 py-1 rounded-lg transition-colors ${
-                  currentPage === page
-                    ? "bg-orange-400 text-white"
-                    : "bg-gray-200 hover:bg-gray-300"
-                }`}
-              >
-                {page}
-              </Link>
-            );
-          })}
-
-          {currentPage < totalPages && (
-            <Link
-              href={`/?page=${currentPage + 1}&search=${searchTerm}`}
-              className="px-3 py-1 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
-            >
-              Next
-            </Link>
-          )}
-        </div>
-      )}
+      <LivePagination
+        initialTotalCount={totalCount}
+        currentPage={currentPage}
+        searchTerm={searchTerm}
+        pageSize={PAGE_SIZE}
+        maxVisiblePages={MAX_VISIBLE_PAGES}
+      />
     </div>
   );
 }

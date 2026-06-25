@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Pokemon } from '../entities/pokemon.entity';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { Pokemon, PokemonDocument } from '../entities/pokemon.entity';
 import {
   CompareRequestDto,
   CompareResponseDto,
@@ -14,80 +14,74 @@ import {
 @Injectable()
 export class CompareService {
   constructor(
-    @InjectRepository(Pokemon)
-    private pokemonRepository: Repository<Pokemon>,
+    @InjectModel(Pokemon.name)
+    private pokemonModel: Model<PokemonDocument>,
   ) {}
 
   async comparePokemon(
     compareDto: CompareRequestDto,
   ): Promise<CompareResponseDto> {
     try {
-    const pokemon1 = await this.pokemonRepository.findOne({
-      where: { id: compareDto.pokemon1Id },
-    });
-    const pokemon2 = await this.pokemonRepository.findOne({
-      where: { id: compareDto.pokemon2Id },
-    });
+      const pokemon1 = await this.pokemonModel.findOne({ id: compareDto.pokemon1Id }).lean().exec();
+      const pokemon2 = await this.pokemonModel.findOne({ id: compareDto.pokemon2Id }).lean().exec();
 
       if (!pokemon1) {
         throw new NotFoundException(`Pokémon with ID ${compareDto.pokemon1Id} not found`);
       }
-      
+
       if (!pokemon2) {
         throw new NotFoundException(`Pokémon with ID ${compareDto.pokemon2Id} not found`);
-    }
+      }
 
-    const stats1 = this.extractStats(pokemon1);
-    const stats2 = this.extractStats(pokemon2);
-    const types1 = getPokemonTypes(pokemon1);
-    const types2 = getPokemonTypes(pokemon2);
+      const stats1 = this.extractStats(pokemon1 as Pokemon);
+      const stats2 = this.extractStats(pokemon2 as Pokemon);
+      const types1 = getPokemonTypes(pokemon1 as Pokemon);
+      const types2 = getPokemonTypes(pokemon2 as Pokemon);
 
-    const totalStats1 = stats1.hp + stats1.attack + stats1.defense + stats1.speed;
-    const totalStats2 = stats2.hp + stats2.attack + stats2.defense + stats2.speed;
+      const totalStats1 = stats1.hp + stats1.attack + stats1.defense + stats1.speed;
+      const totalStats2 = stats2.hp + stats2.attack + stats2.defense + stats2.speed;
 
-    // Calculate type advantages
-    const pokemon1Advantages = this.getAdvantages(types1, types2);
-    const pokemon2Advantages = this.getAdvantages(types2, types1);
-    const pokemon1Weaknesses = this.getWeaknesses(types1, types2);
-    const pokemon2Weaknesses = this.getWeaknesses(types2, types1);
+      const pokemon1Advantages = this.getAdvantages(types1, types2);
+      const pokemon2Advantages = this.getAdvantages(types2, types1);
+      const pokemon1Weaknesses = this.getWeaknesses(types1, types2);
+      const pokemon2Weaknesses = this.getWeaknesses(types2, types1);
 
-    // Calculate win probability (simplified)
-    const winProbability1 = this.calculateWinProbability(
-      stats1,
-      stats2,
-      types1,
-      types2,
-    );
-    const winProbability2 = 100 - winProbability1;
+      const winProbability1 = this.calculateWinProbability(
+        stats1,
+        stats2,
+        types1,
+        types2,
+      );
+      const winProbability2 = 100 - winProbability1;
 
-    return {
-      pokemon1: {
-        id: pokemon1.id,
-        name: pokemon1.name,
-        totalStats: totalStats1,
-        stats: stats1,
-        types: types1,
-      },
-      pokemon2: {
-        id: pokemon2.id,
-        name: pokemon2.name,
-        totalStats: totalStats2,
-        stats: stats2,
-        types: types2,
-      },
-      strengths: {
-        pokemon1Advantages,
-        pokemon2Advantages,
-      },
-      weaknesses: {
-        pokemon1Weaknesses,
-        pokemon2Weaknesses,
-      },
-      winProbability: {
-        pokemon1: winProbability1,
-        pokemon2: winProbability2,
-      },
-    };
+      return {
+        pokemon1: {
+          id: pokemon1.id,
+          name: pokemon1.name,
+          totalStats: totalStats1,
+          stats: stats1,
+          types: types1,
+        },
+        pokemon2: {
+          id: pokemon2.id,
+          name: pokemon2.name,
+          totalStats: totalStats2,
+          stats: stats2,
+          types: types2,
+        },
+        strengths: {
+          pokemon1Advantages,
+          pokemon2Advantages,
+        },
+        weaknesses: {
+          pokemon1Weaknesses,
+          pokemon2Weaknesses,
+        },
+        winProbability: {
+          pokemon1: winProbability1,
+          pokemon2: winProbability2,
+        },
+      };
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw error;
@@ -149,11 +143,9 @@ export class CompareService {
     types1: string[],
     types2: string[],
   ): number {
-    // Simplified win probability calculation
     const totalStats1 = stats1.hp + stats1.attack + stats1.defense + stats1.speed;
     const totalStats2 = stats2.hp + stats2.attack + stats2.defense + stats2.speed;
 
-    // Type advantage bonus
     let typeBonus1 = 0;
     for (const type1 of types1) {
       const multiplier = getTypeEffectiveness(type1, types2);
@@ -173,4 +165,3 @@ export class CompareService {
     return Math.round((score1 / totalScore) * 100);
   }
 }
-

@@ -1,40 +1,29 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  CreateDateColumn,
-  UpdateDateColumn,
-  OneToMany,
-} from 'typeorm';
-import { FavoritePokemon } from './favorite-pokemon.entity';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { HydratedDocument } from 'mongoose';
 
-@Entity('users')
+export type UserDocument = HydratedDocument<User>;
+
+@Schema({ timestamps: true, collection: 'users' })
 export class User {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id?: string;
 
-  @Column({ unique: true })
+  @Prop({ required: true, unique: true })
   email: string;
 
-  @Column()
+  @Prop({ required: true })
   password: string;
 
-  @Column({ nullable: true })
-  name: string;
+  @Prop()
+  name?: string;
 
-  @Column({ nullable: true, unique: true })
-  username: string;
+  @Prop({ unique: true, sparse: true })
+  username?: string;
 
-  @Column({ nullable: true })
-  refreshToken: string;
+  @Prop()
+  refreshToken?: string;
 
-  @CreateDateColumn()
-  createdAt: Date;
-
-  @UpdateDateColumn()
-  updatedAt: Date;
-
-  @OneToMany(() => FavoritePokemon, (favorite) => favorite.user)
-  favorites: FavoritePokemon[];
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
+export const UserSchema = SchemaFactory.createForClass(User);

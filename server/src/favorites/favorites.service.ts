@@ -3,67 +3,70 @@ import {
   NotFoundException,
   ConflictException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { FavoritePokemon } from '../entities/favorite-pokemon.entity';
-import { Pokemon } from '../entities/pokemon.entity';
-import { User } from '../entities/user.entity';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { FavoritePokemon, FavoritePokemonDocument } from '../entities/favorite-pokemon.entity';
+import { Pokemon, PokemonDocument } from '../entities/pokemon.entity';
 import { PokemonDetailsDto } from '../common/dto/pokemon.dto';
 
 @Injectable()
 export class FavoritesService {
   constructor(
-    @InjectRepository(FavoritePokemon)
-    private favoritesRepository: Repository<FavoritePokemon>,
-    @InjectRepository(Pokemon)
-    private pokemonRepository: Repository<Pokemon>,
+    @InjectModel(FavoritePokemon.name)
+    private favoritesModel: Model<FavoritePokemonDocument>,
+    @InjectModel(Pokemon.name)
+    private pokemonModel: Model<PokemonDocument>,
   ) {}
 
   async addFavorite(userId: string, pokemonId: number): Promise<void> {
-    const pokemon = await this.pokemonRepository.findOne({
-      where: { id: pokemonId },
-    });
+    const pokemon = await this.pokemonModel.findOne({ id: pokemonId }).exec();
 
     if (!pokemon) {
       throw new NotFoundException(`Pokemon with ID ${pokemonId} not found`);
     }
 
-    const existingFavorite = await this.favoritesRepository.findOne({
-      where: { userId, pokemonId },
-    });
+    const existingFavorite = await this.favoritesModel
+      .findOne({ userId, pokemonId })
+      .exec();
 
     if (existingFavorite) {
       throw new ConflictException('Pokemon is already in favorites');
     }
 
-    const favorite = this.favoritesRepository.create({
-      userId,
-      pokemonId,
-    });
-
-    await this.favoritesRepository.save(favorite);
+    await this.favoritesModel.create({ userId, pokemonId });
   }
 
   async removeFavorite(userId: string, pokemonId: number): Promise<void> {
-    const favorite = await this.favoritesRepository.findOne({
-      where: { userId, pokemonId },
-    });
+    const favorite = await this.favoritesModel
+      .findOne({ userId, pokemonId })
+      .exec();
 
     if (!favorite) {
       throw new NotFoundException('Favorite not found');
     }
 
-    await this.favoritesRepository.remove(favorite);
+    await this.favoritesModel.deleteOne({ _id: favorite._id }).exec();
   }
 
   async getUserFavorites(userId: string): Promise<PokemonDetailsDto[]> {
-    const favorites = await this.favoritesRepository.find({
-      where: { userId },
-      relations: ['pokemon'],
-      order: { createdAt: 'DESC' },
-    });
+    const favorites = await this.favoritesModel
+      .find({ userId })
+      .sort({ createdAt: -1 })
+      .lean()
+      .exec();
 
-    return favorites.map((fav) => this.mapToPokemonDetailsDto(fav.pokemon));
+    const pokemonIds = favorites.map((f) => f.pokemonId);
+    const pokemonList = await this.pokemonModel
+      .find({ id: { $in: pokemonIds } })
+      .lean()
+      .exec();
+
+    const pokemonMap = new Map(pokemonList.map((p) => [p.id, p]));
+
+    return favorites
+      .map((fav) => pokemonMap.get(fav.pokemonId))
+      .filter((p): p is NonNullable<typeof p> => !!p)
+      .map((pokemon) => this.mapToPokemonDetailsDto(pokemon as Pokemon));
   }
 
   private mapToPokemonDetailsDto(pokemon: Pokemon): PokemonDetailsDto {
@@ -88,4 +91,3 @@ export class FavoritesService {
     };
   }
 }
-

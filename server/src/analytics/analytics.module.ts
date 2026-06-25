@@ -1,15 +1,18 @@
 import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { AnalyticsService } from './analytics.service';
+import { MongooseModule } from '@nestjs/mongoose';
 import { AnalyticsController } from './analytics.controller';
-import { Pokemon } from '../entities/pokemon.entity';
-import { FavoritePokemon } from '../entities/favorite-pokemon.entity';
+import { AnalyticsService } from './analytics.service';
+import { Pokemon, PokemonSchema } from '../entities/pokemon.entity';
+import { FavoritePokemon, FavoritePokemonSchema } from '../entities/favorite-pokemon.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Pokemon, FavoritePokemon])],
+  imports: [
+    MongooseModule.forFeature([
+      { name: Pokemon.name, schema: PokemonSchema },
+      { name: FavoritePokemon.name, schema: FavoritePokemonSchema },
+    ]),
+  ],
   controllers: [AnalyticsController],
   providers: [AnalyticsService],
-  exports: [AnalyticsService],
 })
 export class AnalyticsModule {}
-

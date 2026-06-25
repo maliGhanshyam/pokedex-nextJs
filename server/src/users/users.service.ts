@@ -1,44 +1,36 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { User } from '../entities/user.entity';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { User, UserDocument } from '../entities/user.entity';
 
 @Injectable()
 export class UsersService {
   constructor(
-    @InjectRepository(User)
-    private usersRepository: Repository<User>,
+    @InjectModel(User.name)
+    private usersModel: Model<UserDocument>,
   ) {}
 
-  async create(userData: Partial<User>): Promise<User> {
-    const user = this.usersRepository.create(userData);
-    return this.usersRepository.save(user);
+  async create(userData: Partial<User>): Promise<UserDocument> {
+    const user = new this.usersModel(userData);
+    return user.save();
   }
 
-  async findOne(id: string): Promise<User | null> {
-    return this.usersRepository.findOne({ where: { id } });
+  async findOne(id: string): Promise<UserDocument | null> {
+    return this.usersModel.findById(id).exec();
   }
 
-  async findByEmail(email: string): Promise<User | null> {
-    return this.usersRepository.findOne({ where: { email } });
+  async findByEmail(email: string): Promise<UserDocument | null> {
+    return this.usersModel.findOne({ email }).exec();
   }
 
-  async findByUsername(username: string): Promise<User | null> {
-    return this.usersRepository.findOne({ where: { username } });
-  }
-
-  async findOneWithFavorites(id: string): Promise<User | null> {
-    return this.usersRepository.findOne({
-      where: { id },
-      relations: ['favorites', 'favorites.pokemon'],
-    });
+  async findByUsername(username: string): Promise<UserDocument | null> {
+    return this.usersModel.findOne({ username }).exec();
   }
 
   async updateRefreshToken(
     userId: string,
     refreshToken: string | null,
   ): Promise<void> {
-    await this.usersRepository.update(userId, { refreshToken });
+    await this.usersModel.findByIdAndUpdate(userId, { refreshToken }).exec();
   }
 }
-

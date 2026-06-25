@@ -1,38 +1,18 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  ManyToOne,
-  JoinColumn,
-  CreateDateColumn,
-  Unique,
-} from 'typeorm';
-import { User } from './user.entity';
-import { Pokemon } from './pokemon.entity';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { HydratedDocument } from 'mongoose';
 
-@Entity('favorite_pokemon')
-@Unique(['userId', 'pokemonId'])
+export type FavoritePokemonDocument = HydratedDocument<FavoritePokemon>;
+
+@Schema({ timestamps: { createdAt: true, updatedAt: false }, collection: 'favorite_pokemon' })
 export class FavoritePokemon {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
-  @Column({ type: 'uuid' })
+  @Prop({ required: true, index: true })
   userId: string;
 
-  @Column({ type: 'int' })
+  @Prop({ required: true, index: true })
   pokemonId: number;
 
-  @ManyToOne(() => User, (user) => user.favorites, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'userId' })
-  user: User;
-
-  @ManyToOne(() => Pokemon, (pokemon) => pokemon.favorites, {
-    onDelete: 'CASCADE',
-  })
-  @JoinColumn({ name: 'pokemonId' })
-  pokemon: Pokemon;
-
-  @CreateDateColumn()
-  createdAt: Date;
+  createdAt?: Date;
 }
 
+export const FavoritePokemonSchema = SchemaFactory.createForClass(FavoritePokemon);
+FavoritePokemonSchema.index({ userId: 1, pokemonId: 1 }, { unique: true });

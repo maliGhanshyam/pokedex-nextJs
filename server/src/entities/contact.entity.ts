@@ -1,28 +1,25 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  CreateDateColumn,
-} from 'typeorm';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { HydratedDocument } from 'mongoose';
 
-@Entity('contacts')
+export type ContactDocument = HydratedDocument<Contact>;
+
+@Schema({ timestamps: { createdAt: true, updatedAt: false }, collection: 'contacts' })
 export class Contact {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id?: string;
 
-  @Column()
+  @Prop({ required: true })
   name: string;
 
-  @Column()
+  @Prop({ required: true })
   email: string;
 
-  @Column()
+  @Prop({ required: true })
   mobile: string;
 
-  @Column('text')
+  @Prop({ required: true })
   message: string;
 
-  @CreateDateColumn()
-  createdAt: Date;
+  createdAt?: Date;
 }
 
+export const ContactSchema = SchemaFactory.createForClass(Contact);

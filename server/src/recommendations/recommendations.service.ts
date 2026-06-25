@@ -1,66 +1,61 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Pokemon } from '../entities/pokemon.entity';
-import { FavoritePokemon } from '../entities/favorite-pokemon.entity';
-import { Battle } from '../entities/battle.entity';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { Pokemon, PokemonDocument } from '../entities/pokemon.entity';
+import { FavoritePokemon, FavoritePokemonDocument } from '../entities/favorite-pokemon.entity';
+import { Battle, BattleDocument } from '../entities/battle.entity';
 import { PokemonDetailsDto } from '../common/dto/pokemon.dto';
 import { getPokemonTypes } from '../common/utils/type-effectiveness';
 
 @Injectable()
 export class RecommendationsService {
   constructor(
-    @InjectRepository(Pokemon)
-    private pokemonRepository: Repository<Pokemon>,
-    @InjectRepository(FavoritePokemon)
-    private favoritesRepository: Repository<FavoritePokemon>,
-    @InjectRepository(Battle)
-    private battleRepository: Repository<Battle>,
+    @InjectModel(Pokemon.name)
+    private pokemonModel: Model<PokemonDocument>,
+    @InjectModel(FavoritePokemon.name)
+    private favoritesModel: Model<FavoritePokemonDocument>,
+    @InjectModel(Battle.name)
+    private battleModel: Model<BattleDocument>,
   ) {}
 
   async getRecommendations(userId: string, limit = 10): Promise<PokemonDetailsDto[]> {
-    // Get user's favorites
-    const favorites = await this.favoritesRepository.find({
-      where: { userId },
-      relations: ['pokemon'],
-    });
+    const favorites = await this.favoritesModel.find({ userId }).lean().exec();
 
-    // Get battle history
-    const battles = await this.battleRepository.find({
-      where: { userId },
-      relations: ['pokemon1', 'pokemon2'],
-      take: 20,
-    });
+    const battles = await this.battleModel
+      .find({ userId })
+      .sort({ createdAt: -1 })
+      .limit(20)
+      .lean()
+      .exec();
 
-    // Analyze preferences
-    const favoriteTypes = this.extractPreferredTypes(favorites);
-    const battleTypes = this.extractBattleTypes(battles);
+    const favoritePokemonIds = favorites.map((f) => f.pokemonId);
+    const battlePokemonIds = battles.flatMap((b) => [b.pokemon1Id, b.pokemon2Id]);
+    const relatedPokemonIds = [...new Set([...favoritePokemonIds, ...battlePokemonIds])];
 
-    // Combine preferences
-    const allPreferredTypes = [
-      ...favoriteTypes,
-      ...battleTypes,
-    ];
+    const relatedPokemon = relatedPokemonIds.length
+      ? await this.pokemonModel.find({ id: { $in: relatedPokemonIds } }).lean().exec()
+      : [];
 
-    // Get all pokemon
-    const allPokemon = await this.pokemonRepository.find({
-      take: 1000,
-    });
+    const favoriteTypes = this.extractPreferredTypes(favorites, relatedPokemon as Pokemon[]);
+    const battleTypes = this.extractBattleTypes(battles, relatedPokemon as Pokemon[]);
 
-    // Score and rank pokemon
+    const allPreferredTypes = [...favoriteTypes, ...battleTypes];
+
+    const allPokemon = await this.pokemonModel.find().limit(1000).lean().exec();
+
+    const favoriteIdSet = new Set(favoritePokemonIds);
+
     const scored = allPokemon
       .map((pokemon) => {
-        const types = getPokemonTypes(pokemon);
+        const types = getPokemonTypes(pokemon as Pokemon);
         const typeMatchScore = types.reduce((score, type) => {
           return score + (allPreferredTypes.includes(type) ? 10 : 0);
         }, 0);
 
-        // Bonus for high total stats
-        const totalStats = this.calculateTotalStats(pokemon);
+        const totalStats = this.calculateTotalStats(pokemon as Pokemon);
         const statScore = Math.min(totalStats / 50, 20);
 
-        // Penalty if already favorited
-        const isFavorite = favorites.some((f) => f.pokemonId === pokemon.id);
+        const isFavorite = favoriteIdSet.has(pokemon.id);
         const favoritePenalty = isFavorite ? -50 : 0;
 
         return {
@@ -72,7 +67,7 @@ export class RecommendationsService {
       .slice(0, limit)
       .map((item) => item.pokemon);
 
-    return scored.map((p) => this.mapToPokemonDetailsDto(p));
+    return scored.map((p) => this.mapToPokemonDetailsDto(p as Pokemon));
   }
 
   private mapToPokemonDetailsDto(pokemon: Pokemon): PokemonDetailsDto {
@@ -99,38 +94,42 @@ export class RecommendationsService {
 
   private extractPreferredTypes(
     favorites: FavoritePokemon[],
+    pokemonList: Pokemon[],
   ): string[] {
     const typeCounts: Record<string, number> = {};
+    const pokemonMap = new Map(pokemonList.map((p) => [p.id, p]));
 
     favorites.forEach((fav) => {
-      if (fav.pokemon) {
-        const types = getPokemonTypes(fav.pokemon);
+      const pokemon = pokemonMap.get(fav.pokemonId);
+      if (pokemon) {
+        const types = getPokemonTypes(pokemon);
         types.forEach((type) => {
           typeCounts[type] = (typeCounts[type] || 0) + 1;
         });
       }
     });
 
-    // Return top 3 types
     return Object.entries(typeCounts)
       .sort(([, a], [, b]) => b - a)
       .slice(0, 3)
       .map(([type]) => type);
   }
 
-  private extractBattleTypes(battles: Battle[]): string[] {
+  private extractBattleTypes(battles: Battle[], pokemonList: Pokemon[]): string[] {
     const typeCounts: Record<string, number> = {};
+    const pokemonMap = new Map(pokemonList.map((p) => [p.id, p]));
 
     battles.forEach((battle) => {
-      if (battle.pokemon1) {
-        const types = getPokemonTypes(battle.pokemon1);
-        types.forEach((type) => {
+      const pokemon1 = pokemonMap.get(battle.pokemon1Id);
+      const pokemon2 = pokemonMap.get(battle.pokemon2Id);
+
+      if (pokemon1) {
+        getPokemonTypes(pokemon1).forEach((type) => {
           typeCounts[type] = (typeCounts[type] || 0) + 1;
         });
       }
-      if (battle.pokemon2) {
-        const types = getPokemonTypes(battle.pokemon2);
-        types.forEach((type) => {
+      if (pokemon2) {
+        getPokemonTypes(pokemon2).forEach((type) => {
           typeCounts[type] = (typeCounts[type] || 0) + 1;
         });
       }
@@ -146,4 +145,3 @@ export class RecommendationsService {
     return pokemon.stats.reduce((sum, stat) => sum + stat.base_stat, 0);
   }
 }
-

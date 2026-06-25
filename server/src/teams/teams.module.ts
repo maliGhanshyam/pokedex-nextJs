@@ -1,14 +1,14 @@
 import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { TeamsService } from './teams.service';
+import { MongooseModule } from '@nestjs/mongoose';
 import { TeamsController } from './teams.controller';
-import { Pokemon } from '../entities/pokemon.entity';
+import { TeamsService } from './teams.service';
+import { Pokemon, PokemonSchema } from '../entities/pokemon.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Pokemon])],
+  imports: [
+    MongooseModule.forFeature([{ name: Pokemon.name, schema: PokemonSchema }]),
+  ],
   controllers: [TeamsController],
   providers: [TeamsService],
-  exports: [TeamsService],
 })
 export class TeamsModule {}
-

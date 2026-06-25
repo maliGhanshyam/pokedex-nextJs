@@ -1,41 +1,36 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  CreateDateColumn,
-  UpdateDateColumn,
-  OneToMany,
-} from 'typeorm';
-import { FavoritePokemon } from './favorite-pokemon.entity';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { HydratedDocument } from 'mongoose';
 
-@Entity('pokemon')
+export type PokemonDocument = HydratedDocument<Pokemon>;
+
+@Schema({ timestamps: true, collection: 'pokemon' })
 export class Pokemon {
-  @PrimaryGeneratedColumn()
+  @Prop({ required: true, unique: true, index: true })
   id: number;
 
-  @Column({ unique: true })
+  @Prop({ required: true, unique: true, lowercase: true })
   name: string;
 
-  @Column({ type: 'int' })
+  @Prop({ required: true })
   height: number;
 
-  @Column({ type: 'int' })
+  @Prop({ required: true })
   weight: number;
 
-  @Column({ type: 'jsonb' })
+  @Prop({ type: [Object], default: [] })
   stats: {
     base_stat: number;
     effort: number;
     stat: { name: string };
   }[];
 
-  @Column({ type: 'jsonb' })
+  @Prop({ type: [Object], default: [] })
   types: { type: { name: string } }[];
 
-  @Column()
+  @Prop({ default: '' })
   sprite: string;
 
-  @Column({ type: 'jsonb', nullable: true })
+  @Prop({ type: Object })
   sprites: {
     front_default: string;
     other: {
@@ -46,19 +41,14 @@ export class Pokemon {
     };
   };
 
-  @Column({ type: 'jsonb', nullable: true })
+  @Prop({ type: [Object], default: [] })
   abilities: { ability: { name: string } }[];
 
-  @Column({ type: 'jsonb', nullable: true })
+  @Prop({ type: Object })
   species: { name: string };
 
-  @CreateDateColumn()
-  createdAt: Date;
-
-  @UpdateDateColumn()
-  updatedAt: Date;
-
-  @OneToMany(() => FavoritePokemon, (favorite) => favorite.pokemon)
-  favorites: FavoritePokemon[];
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
+export const PokemonSchema = SchemaFactory.createForClass(Pokemon);

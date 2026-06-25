@@ -55,3 +55,30 @@
 .modal-content-exit {
   animation: modalSlideIn 0.2s ease-in reverse;
 }
+
+@keyframes pokeballSpin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes dexShimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+
+@keyframes dexGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(251, 146, 60, 0.35); }
+  50% { box-shadow: 0 0 18px 4px rgba(251, 146, 60, 0.2); }
+}
+
+.animate-pokeball-spin {
+  animation: pokeballSpin 1.2s linear infinite;
+}
+
+.animate-dex-glow {
+  animation: dexGlow 2.4s ease-in-out infinite;
+}
+
+.animate-dex-shimmer {
+  animation: dexShimmer 2s ease-in-out infinite;
+}

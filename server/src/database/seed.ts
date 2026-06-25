@@ -1,54 +1,43 @@
 import 'reflect-metadata';
-import { DataSource } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { config } from 'dotenv';
-import { User } from '../entities/user.entity';
+import mongoose from 'mongoose';
+import { UserSchema } from '../entities/user.entity';
+import { DEMO_USER } from '../users/demo-user.seed.service';
 
 config();
 
 async function seed() {
-  const dataSource = new DataSource({
-    type: 'postgres',
-    host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT || '5432', 10),
-    username: process.env.DB_USERNAME || 'postgres',
-    password: process.env.DB_PASSWORD || 'postgres',
-    database: process.env.DB_DATABASE || 'pokedex',
-    entities: [User],
-    synchronize: false,
-  });
+  const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/pokedex';
 
   try {
-    await dataSource.initialize();
+    await mongoose.connect(mongoUri);
     console.log('Database connected');
 
-    const userRepository = dataSource.getRepository(User);
+    const UserModel = mongoose.model('User', UserSchema);
 
-    // Check if dummy user already exists
-    const existingUser = await userRepository.findOne({
-      where: { email: 'demo@example.com' },
-    });
+    const existingUser = await UserModel.findOne({ email: DEMO_USER.email });
 
     if (existingUser) {
       console.log('Dummy user already exists');
-      await dataSource.destroy();
+      await mongoose.disconnect();
       return;
     }
 
-    // Create dummy user with encrypted password
-    const hashedPassword = await bcrypt.hash('password123', 10);
+    const hashedPassword = await bcrypt.hash(DEMO_USER.password, 10);
 
-    const dummyUser = userRepository.create({
-      email: 'demo@example.com',
+    await UserModel.create({
+      email: DEMO_USER.email,
       password: hashedPassword,
+      name: DEMO_USER.name,
+      username: DEMO_USER.username,
     });
 
-    await userRepository.save(dummyUser);
     console.log('Dummy user created successfully!');
-    console.log('Email: demo@example.com');
-    console.log('Password: password123');
+    console.log(`Email: ${DEMO_USER.email}`);
+    console.log(`Password: ${DEMO_USER.password}`);
 
-    await dataSource.destroy();
+    await mongoose.disconnect();
   } catch (error) {
     console.error('Error seeding database:', error);
     process.exit(1);
@@ -56,4 +45,3 @@ async function seed() {
 }
 
 seed();
-

@@ -1,8 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Battle } from '../entities/battle.entity';
-import { Pokemon } from '../entities/pokemon.entity';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { Battle, BattleDocument } from '../entities/battle.entity';
+import { Pokemon, PokemonDocument } from '../entities/pokemon.entity';
 import { BattleRequestDto, BattleResponseDto, BattleLogEntryDto } from '../common/dto/battle.dto';
 import {
   getTypeEffectiveness,
@@ -13,10 +13,10 @@ import {
 @Injectable()
 export class BattleService {
   constructor(
-    @InjectRepository(Battle)
-    private battleRepository: Repository<Battle>,
-    @InjectRepository(Pokemon)
-    private pokemonRepository: Repository<Pokemon>,
+    @InjectModel(Battle.name)
+    private battleModel: Model<BattleDocument>,
+    @InjectModel(Pokemon.name)
+    private pokemonModel: Model<PokemonDocument>,
   ) {}
 
   async simulateBattle(
@@ -24,110 +24,99 @@ export class BattleService {
     battleDto: BattleRequestDto,
   ): Promise<BattleResponseDto> {
     try {
-    const pokemon1 = await this.pokemonRepository.findOne({
-      where: { id: battleDto.pokemon1Id },
-    });
-    const pokemon2 = await this.pokemonRepository.findOne({
-      where: { id: battleDto.pokemon2Id },
-    });
+      const pokemon1 = await this.pokemonModel.findOne({ id: battleDto.pokemon1Id }).lean().exec();
+      const pokemon2 = await this.pokemonModel.findOne({ id: battleDto.pokemon2Id }).lean().exec();
 
       if (!pokemon1) {
         throw new NotFoundException(`Pokémon with ID ${battleDto.pokemon1Id} not found`);
       }
-      
+
       if (!pokemon2) {
         throw new NotFoundException(`Pokémon with ID ${battleDto.pokemon2Id} not found`);
-    }
-
-    const stats1 = this.extractStats(pokemon1);
-    const stats2 = this.extractStats(pokemon2);
-    const types1 = getPokemonTypes(pokemon1);
-    const types2 = getPokemonTypes(pokemon2);
-
-    let hp1 = stats1.hp;
-    let hp2 = stats2.hp;
-    const battleLog: BattleLogEntryDto[] = [];
-    let turn = 0;
-    let currentAttacker = stats1.speed >= stats2.speed ? 1 : 2;
-
-    while (hp1 > 0 && hp2 > 0 && turn < 50) {
-      turn++;
-      const attacker = currentAttacker === 1 ? pokemon1 : pokemon2;
-      const defender = currentAttacker === 1 ? pokemon2 : pokemon1;
-      const attackerStats = currentAttacker === 1 ? stats1 : stats2;
-      const defenderStats = currentAttacker === 1 ? stats2 : stats1;
-      const attackerTypes = currentAttacker === 1 ? types1 : types2;
-      const defenderTypes = currentAttacker === 1 ? types2 : types1;
-      let attackerHp = currentAttacker === 1 ? hp1 : hp2;
-      let defenderHp = currentAttacker === 1 ? hp2 : hp1;
-
-      // Determine attack type (use first type of attacker)
-      const attackType = attackerTypes[0];
-      const typeMultiplier = getTypeEffectiveness(attackType, defenderTypes);
-
-      // Calculate damage
-      const damage = calculateDamage(
-        attackerStats.attack,
-        defenderStats.defense,
-        typeMultiplier,
-      );
-
-      defenderHp = Math.max(0, defenderHp - damage);
-
-      if (currentAttacker === 1) {
-        hp2 = defenderHp;
-      } else {
-        hp1 = defenderHp;
       }
 
-      battleLog.push({
-        turn,
-        attacker: attacker.name,
-        defender: defender.name,
-        move: `${attackType} attack`,
-        damage,
-        typeMultiplier,
-        attackerHp: currentAttacker === 1 ? hp1 : hp2,
-        defenderHp,
-      });
+      const stats1 = this.extractStats(pokemon1 as Pokemon);
+      const stats2 = this.extractStats(pokemon2 as Pokemon);
+      const types1 = getPokemonTypes(pokemon1 as Pokemon);
+      const types2 = getPokemonTypes(pokemon2 as Pokemon);
 
-      // Switch attacker
-      currentAttacker = currentAttacker === 1 ? 2 : 1;
-    }
+      let hp1 = stats1.hp;
+      let hp2 = stats2.hp;
+      const battleLog: BattleLogEntryDto[] = [];
+      let turn = 0;
+      let currentAttacker = stats1.speed >= stats2.speed ? 1 : 2;
 
-    const winner = hp1 > 0 ? pokemon1 : pokemon2;
-    const loser = hp1 > 0 ? pokemon2 : pokemon1;
+      while (hp1 > 0 && hp2 > 0 && turn < 50) {
+        turn++;
+        const attacker = currentAttacker === 1 ? pokemon1 : pokemon2;
+        const defender = currentAttacker === 1 ? pokemon2 : pokemon1;
+        const attackerStats = currentAttacker === 1 ? stats1 : stats2;
+        const defenderStats = currentAttacker === 1 ? stats2 : stats1;
+        const attackerTypes = currentAttacker === 1 ? types1 : types2;
+        const defenderTypes = currentAttacker === 1 ? types2 : types1;
+        let defenderHp = currentAttacker === 1 ? hp2 : hp1;
 
-    // Save battle to database
+        const attackType = attackerTypes[0];
+        const typeMultiplier = getTypeEffectiveness(attackType, defenderTypes);
+
+        const damage = calculateDamage(
+          attackerStats.attack,
+          defenderStats.defense,
+          typeMultiplier,
+        );
+
+        defenderHp = Math.max(0, defenderHp - damage);
+
+        if (currentAttacker === 1) {
+          hp2 = defenderHp;
+        } else {
+          hp1 = defenderHp;
+        }
+
+        battleLog.push({
+          turn,
+          attacker: attacker.name,
+          defender: defender.name,
+          move: `${attackType} attack`,
+          damage,
+          typeMultiplier,
+          attackerHp: currentAttacker === 1 ? hp1 : hp2,
+          defenderHp,
+        });
+
+        currentAttacker = currentAttacker === 1 ? 2 : 1;
+      }
+
+      const winner = hp1 > 0 ? pokemon1 : pokemon2;
+      const loser = hp1 > 0 ? pokemon2 : pokemon1;
+
       try {
-    await this.battleRepository.save({
-      userId,
-      pokemon1Id: pokemon1.id,
-      pokemon2Id: pokemon2.id,
-      winnerId: winner.id,
-      battleLog,
-      turns: turn,
-    });
+        await this.battleModel.create({
+          userId,
+          pokemon1Id: pokemon1.id,
+          pokemon2Id: pokemon2.id,
+          winnerId: winner.id,
+          battleLog,
+          turns: turn,
+        });
       } catch (dbError) {
-        // Log database error but don't fail the battle simulation
         console.error('Failed to save battle to database:', dbError);
       }
 
-    return {
-      winnerId: winner.id,
-      winnerName: winner.name,
-      loserId: loser.id,
-      loserName: loser.name,
-      turns: turn,
-      battleLog,
-      pokemon1Stats: stats1,
-      pokemon2Stats: stats2,
-    };
+      return {
+        winnerId: winner.id,
+        winnerName: winner.name,
+        loserId: loser.id,
+        loserName: loser.name,
+        turns: turn,
+        battleLog,
+        pokemon1Stats: stats1,
+        pokemon2Stats: stats2,
+      };
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw error;
       }
-      // Re-throw as a more user-friendly error
       throw new Error(`Failed to simulate battle: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -149,15 +138,35 @@ export class BattleService {
 
   async getBattleHistory(userId: string, limit = 10) {
     try {
-      return await this.battleRepository.find({
-      where: { userId },
-      relations: ['pokemon1', 'pokemon2', 'winner'],
-      order: { createdAt: 'DESC' },
-      take: limit,
-    });
+      const battles = await this.battleModel
+        .find({ userId })
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .lean()
+        .exec();
+
+      const pokemonIds = new Set<number>();
+      battles.forEach((b) => {
+        pokemonIds.add(b.pokemon1Id);
+        pokemonIds.add(b.pokemon2Id);
+        pokemonIds.add(b.winnerId);
+      });
+
+      const pokemonList = await this.pokemonModel
+        .find({ id: { $in: Array.from(pokemonIds) } })
+        .lean()
+        .exec();
+
+      const pokemonMap = new Map(pokemonList.map((p) => [p.id, p]));
+
+      return battles.map((battle) => ({
+        ...battle,
+        pokemon1: pokemonMap.get(battle.pokemon1Id) || null,
+        pokemon2: pokemonMap.get(battle.pokemon2Id) || null,
+        winner: pokemonMap.get(battle.winnerId) || null,
+      }));
     } catch (error) {
       throw new Error(`Failed to retrieve battle history: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 }
-

@@ -206,6 +206,12 @@ export const getPokemonTypesBatch = async (
   }
 };
 
+/** Lightweight count poll for live pagination while background sync runs */
+export const getPokemonCount = async (): Promise<number> => {
+  const response = await api.get<{ count: number }>('/pokemon/count');
+  return response.data.count;
+};
+
 /**
  * Fetch detailed info for a specific Pokémon by name
  */

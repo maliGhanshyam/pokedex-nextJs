@@ -1,30 +1,28 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Pokemon } from '../entities/pokemon.entity';
-import { FavoritePokemon } from '../entities/favorite-pokemon.entity';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { Pokemon, PokemonDocument } from '../entities/pokemon.entity';
+import { FavoritePokemon, FavoritePokemonDocument } from '../entities/favorite-pokemon.entity';
 
 @Injectable()
 export class AnalyticsService {
   constructor(
-    @InjectRepository(Pokemon)
-    private pokemonRepository: Repository<Pokemon>,
-    @InjectRepository(FavoritePokemon)
-    private favoritesRepository: Repository<FavoritePokemon>,
+    @InjectModel(Pokemon.name)
+    private pokemonModel: Model<PokemonDocument>,
+    @InjectModel(FavoritePokemon.name)
+    private favoritesModel: Model<FavoritePokemonDocument>,
   ) {}
 
   async getStats() {
-    const totalPokemon = await this.pokemonRepository.count();
-    const totalFavorites = await this.favoritesRepository.count();
+    const totalPokemon = await this.pokemonModel.countDocuments();
+    const totalFavorites = await this.favoritesModel.countDocuments();
 
-    const mostFavoritePokemon = await this.favoritesRepository
-      .createQueryBuilder('favorite')
-      .select('favorite.pokemonId', 'pokemonId')
-      .addSelect('COUNT(favorite.id)', 'count')
-      .groupBy('favorite.pokemonId')
-      .orderBy('count', 'DESC')
-      .limit(10)
-      .getRawMany();
+    const mostFavoritePokemon = await this.favoritesModel.aggregate([
+      { $group: { _id: '$pokemonId', count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: 10 },
+      { $project: { pokemonId: '$_id', count: 1, _id: 0 } },
+    ]);
 
     return {
       totalPokemon,
@@ -33,4 +31,3 @@ export class AnalyticsService {
     };
   }
 }
-

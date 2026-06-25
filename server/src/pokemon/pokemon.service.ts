@@ -1,10 +1,10 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
+import { InjectModel, InjectConnection } from '@nestjs/mongoose';
+import { Model, Connection } from 'mongoose';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
-import { Pokemon } from '../entities/pokemon.entity';
+import { Pokemon, PokemonDocument } from '../entities/pokemon.entity';
 import {
   PokemonDetailsDto,
   PokemonListResponseDto,
@@ -17,12 +17,12 @@ export class PokemonService {
   private readonly pokeApiBaseUrl: string;
 
   constructor(
-    @InjectRepository(Pokemon)
-    private pokemonRepository: Repository<Pokemon>,
+    @InjectModel(Pokemon.name)
+    private pokemonModel: Model<PokemonDocument>,
     private httpService: HttpService,
     private configService: ConfigService,
-    @InjectDataSource()
-    private dataSource: DataSource,
+    @InjectConnection()
+    private connection: Connection,
   ) {
     this.pokeApiBaseUrl =
       this.configService.get<string>('POKEAPI_BASE_URL') ||
@@ -31,63 +31,43 @@ export class PokemonService {
 
   async hasData(): Promise<boolean> {
     try {
-      const count = await this.pokemonRepository.count();
+      const count = await this.pokemonModel.countDocuments();
       return count > 0;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      // If table doesn't exist, return false (no data exists)
-      if (errorMessage.includes('relation') && errorMessage.includes('does not exist')) {
-        return false;
-      }
-      // Re-throw other errors
-      throw error;
+      this.logger.warn(`Failed to check pokemon data: ${error instanceof Error ? error.message : String(error)}`);
+      return false;
     }
   }
 
-  /**
-   * Check if incremental sync is needed
-   * Returns true if we have less than expected Pokemon count (e.g., < 1000)
-   */
+  async getCount(): Promise<number> {
+    try {
+      return await this.pokemonModel.countDocuments();
+    } catch (error) {
+      this.logger.warn(`Failed to count pokemon: ${error instanceof Error ? error.message : String(error)}`);
+      return 0;
+    }
+  }
+
   async needsIncrementalSync(): Promise<boolean> {
     try {
-      const count = await this.pokemonRepository.count();
-      // If we have less than 1000 Pokemon, we likely need to sync more
-      // PokeAPI has ~1000+ Pokemon, so this is a reasonable threshold
+      const count = await this.pokemonModel.countDocuments();
       const expectedMinCount = 1000;
       return count < expectedMinCount;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      if (errorMessage.includes('relation') && errorMessage.includes('does not exist')) {
-        return true; // Need sync if table doesn't exist
-      }
-      throw error;
+      this.logger.warn(`Failed to check sync status: ${error instanceof Error ? error.message : String(error)}`);
+      return true;
     }
   }
 
-  /**
-   * Incremental sync - only syncs Pokemon that don't exist in the database
-   */
   async syncPokemonIncremental(): Promise<{ synced: number; errors: number }> {
     this.logger.log('Starting incremental Pokémon sync job...');
-    
-    // First, verify that the pokemon table exists
-    try {
-      await this.pokemonRepository.count();
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      if (errorMessage.includes('relation') && errorMessage.includes('does not exist')) {
-        this.logger.error('Cannot sync: pokemon table does not exist. Please enable DB_SYNCHRONIZE=true and redeploy.');
-        throw new Error('Database tables do not exist. Please enable DB_SYNCHRONIZE=true in environment variables.');
-      }
-      throw error;
-    }
-    
+
     let synced = 0;
     let errors = 0;
     const batchSize = 20;
     let offset = 0;
     let hasMore = true;
-    const maxSyncLimit = 10000; // Safety limit to prevent infinite loops
+    const maxSyncLimit = 10000;
 
     try {
       while (hasMore && offset < maxSyncLimit) {
@@ -102,7 +82,6 @@ export class PokemonService {
 
           for (const pokemonResult of pokemonList) {
             try {
-              // Extract Pokemon ID from URL (e.g., "https://pokeapi.co/api/v2/pokemon/1/")
               const pokemonIdMatch = pokemonResult.url.match(/\/pokemon\/(\d+)\//);
               if (!pokemonIdMatch) {
                 this.logger.warn(`Could not extract ID from URL: ${pokemonResult.url}`);
@@ -110,43 +89,25 @@ export class PokemonService {
               }
               const pokemonId = parseInt(pokemonIdMatch[1], 10);
 
-              // Check if Pokemon already exists in database
-              const existing = await this.pokemonRepository.findOne({
-                where: { id: pokemonId },
-              });
-
+              const existing = await this.pokemonModel.findOne({ id: pokemonId });
               if (existing) {
-                // Skip if already exists
                 continue;
               }
 
-              // Sync only if missing
               await this.syncSinglePokemon(pokemonResult.url);
               synced++;
-              
-              // Log progress every 50 pokemon
+
               if (synced % 50 === 0) {
                 this.logger.log(`Incremental sync: Synced ${synced} new Pokémon so far...`);
               }
-              
-              // Add delay between requests to avoid rate limiting
+
               await this.sleep(600);
             } catch (error) {
               errors++;
-              const errorMessage = error instanceof Error ? error.message : String(error);
-              
-              // If table doesn't exist, stop syncing immediately
-              if (errorMessage.includes('relation') && errorMessage.includes('does not exist')) {
-                this.logger.error(`Cannot continue sync: pokemon table does not exist. Stopped at ${synced} Pokémon.`);
-                hasMore = false;
-                break;
-              }
-              
               this.logger.error(
-                `Error syncing ${pokemonResult.name}: ${errorMessage}`,
+                `Error syncing ${pokemonResult.name}: ${error instanceof Error ? error.message : String(error)}`,
               );
-              
-              // Stop if too many errors occur
+
               if (errors > 10 && synced === 0) {
                 this.logger.error('Too many errors, stopping sync.');
                 hasMore = false;
@@ -161,9 +122,8 @@ export class PokemonService {
             offset += batchSize;
           }
         } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : String(error);
           this.logger.error(
-            `Error fetching Pokémon list at offset ${offset}: ${errorMessage}`,
+            `Error fetching Pokémon list at offset ${offset}: ${error instanceof Error ? error.message : String(error)}`,
           );
           errors++;
           hasMore = false;
@@ -184,65 +144,23 @@ export class PokemonService {
 
   async clearAllTables(): Promise<void> {
     try {
-      this.logger.log('Clearing all database tables...');
-      
-      // Check if tables exist first (using information_schema)
-      const tablesToCheck = ['favorite_pokemon', 'battles', 'contacts', 'pokemon', 'users'];
-      const existingTables: string[] = [];
-      
-      for (const table of tablesToCheck) {
+      this.logger.log('Clearing all database collections...');
+      const collections = ['favorite_pokemon', 'battles', 'contacts', 'pokemon', 'users'];
+
+      for (const name of collections) {
         try {
-          const result = await this.dataSource.query(
-            `SELECT 1 FROM information_schema.tables WHERE table_name = $1`,
-            [table]
-          );
-          if (result && result.length > 0) {
-            existingTables.push(table);
-          }
+          await this.connection.collection(name).deleteMany({});
+          this.logger.debug(`Cleared collection: ${name}`);
         } catch (error) {
-          // If information_schema query fails, try direct query
-          try {
-            await this.dataSource.query(`SELECT 1 FROM ${table} LIMIT 1`);
-            existingTables.push(table);
-          } catch (err) {
-            // Table doesn't exist, skip it
-          }
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          this.logger.warn(`Failed to clear collection ${name}: ${errorMessage}`);
         }
       }
-      
-      if (existingTables.length === 0) {
-        this.logger.log('No tables exist yet, skipping clear operation.');
-        return;
-      }
-      
-      // Clear tables using safe TypeORM methods
-      // Order matters: clear child tables first, then parent tables
-      const tablesToClear = ['favorite_pokemon', 'battles', 'contacts', 'pokemon', 'users'];
-      
-      // Use TypeORM repositories to safely clear data
-      for (const table of tablesToClear) {
-        if (existingTables.includes(table)) {
-          try {
-            // Use safe TypeORM query with CASCADE for foreign key handling
-            await this.dataSource.query(`TRUNCATE TABLE ${table} CASCADE;`);
-            this.logger.debug(`Cleared table: ${table}`);
-          } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            this.logger.warn(`Failed to clear table ${table}: ${errorMessage}`);
-          }
-        }
-      }
-      
-      this.logger.log('All database tables cleared successfully.');
+
+      this.logger.log('All database collections cleared successfully.');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      // If tables don't exist yet, that's okay - they'll be created by synchronize
-      if (errorMessage.includes('relation') && errorMessage.includes('does not exist')) {
-        this.logger.log('Tables do not exist yet, skipping clear operation.');
-        return;
-      }
-      // For other errors, log but don't throw (non-critical operation)
-      this.logger.warn(`Error clearing tables: ${errorMessage}`);
+      this.logger.warn(`Error clearing collections: ${errorMessage}`);
     }
   }
 
@@ -250,24 +168,24 @@ export class PokemonService {
     const { limit = 20, offset = 0 } = query;
 
     try {
-      // Optimize query by selecting only needed fields
-      const [pokemon, total] = await this.pokemonRepository.findAndCount({
-        select: ['id', 'name', 'sprite', 'sprites'],
-        take: limit,
-        skip: offset,
-        order: { id: 'ASC' },
-      });
+      const [pokemon, total] = await Promise.all([
+        this.pokemonModel
+          .find({}, { id: 1, name: 1, sprite: 1, sprites: 1 })
+          .sort({ id: 1 })
+          .skip(offset)
+          .limit(limit)
+          .lean()
+          .exec(),
+        this.pokemonModel.countDocuments(),
+      ]);
 
       const results = pokemon.map((p) => {
-        // Use stored sprite URLs from database - these contain the correct PokeAPI URLs
-        // The sprites field is populated during sync with data from PokeAPI
-        const officialArtworkUrl = p.sprites?.other?.['official-artwork']?.front_default || 
-          p.sprite || 
+        const officialArtworkUrl =
+          p.sprites?.other?.['official-artwork']?.front_default ||
+          p.sprite ||
           '';
-        
-        const defaultSpriteUrl = p.sprites?.front_default || 
-          p.sprite || 
-          '';
+
+        const defaultSpriteUrl = p.sprites?.front_default || p.sprite || '';
 
         return {
           name: p.name,
@@ -294,81 +212,50 @@ export class PokemonService {
         results,
       };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      if (errorMessage.includes('relation') && errorMessage.includes('does not exist')) {
-        this.logger.warn('Pokemon table does not exist yet. Returning empty results.');
-        // Return empty result set if table doesn't exist
-        return {
-          count: 0,
-          next: null,
-          previous: null,
-          results: [],
-        };
-      }
-      throw error;
+      this.logger.warn(`Failed to fetch pokemon list: ${error instanceof Error ? error.message : String(error)}`);
+      return {
+        count: 0,
+        next: null,
+        previous: null,
+        results: [],
+      };
     }
   }
 
   async findOne(name: string): Promise<PokemonDetailsDto> {
-    try {
-      const pokemon = await this.pokemonRepository.findOne({
-        where: { name: name.toLowerCase() },
-      });
+    const pokemon = await this.pokemonModel
+      .findOne({ name: name.toLowerCase() })
+      .lean()
+      .exec();
 
-      if (!pokemon) {
-        throw new NotFoundException(`Pokemon with name ${name} not found`);
-      }
-
-      return this.mapToPokemonDetailsDto(pokemon);
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      if (errorMessage.includes('relation') && errorMessage.includes('does not exist')) {
-        this.logger.warn('Pokemon table does not exist yet.');
-        throw new NotFoundException(`Pokemon with name ${name} not found`);
-      }
-      throw error;
+    if (!pokemon) {
+      throw new NotFoundException(`Pokemon with name ${name} not found`);
     }
+
+    return this.mapToPokemonDetailsDto(pokemon as Pokemon);
   }
 
   async findAllTypes(): Promise<string[]> {
     try {
-      const pokemon = await this.pokemonRepository.find({
-        select: ['types'],
-      });
+      const pokemon = await this.pokemonModel.find({}, { types: 1 }).lean().exec();
 
       const typeSet = new Set<string>();
       pokemon.forEach((p) => {
-        p.types.forEach((type) => {
+        p.types?.forEach((type) => {
           typeSet.add(type.type.name);
         });
       });
 
       return Array.from(typeSet).sort();
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      if (errorMessage.includes('relation') && errorMessage.includes('does not exist')) {
-        this.logger.warn('Pokemon table does not exist yet. Returning empty types array.');
-        return [];
-      }
-      throw error;
+      this.logger.warn(`Failed to fetch types: ${error instanceof Error ? error.message : String(error)}`);
+      return [];
     }
   }
 
   async syncPokemon(): Promise<{ synced: number; errors: number }> {
     this.logger.log('Starting Pokémon sync job...');
-    
-    // First, verify that the pokemon table exists
-    try {
-      await this.pokemonRepository.count();
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      if (errorMessage.includes('relation') && errorMessage.includes('does not exist')) {
-        this.logger.error('Cannot sync: pokemon table does not exist. Please enable DB_SYNCHRONIZE=true and redeploy.');
-        throw new Error('Database tables do not exist. Please enable DB_SYNCHRONIZE=true in environment variables.');
-      }
-      throw error;
-    }
-    
+
     let synced = 0;
     let errors = 0;
     const batchSize = 20;
@@ -384,36 +271,22 @@ export class PokemonService {
           if (pokemonList.length === 0) {
             hasMore = false;
             break;
-          }
+}
 
           for (const pokemonResult of pokemonList) {
             try {
               await this.syncSinglePokemon(pokemonResult.url);
               synced++;
-              // Log progress every 50 pokemon
               if (synced % 50 === 0) {
                 this.logger.log(`Synced ${synced} Pokémon so far...`);
               }
-              
-              // Add delay between requests to avoid rate limiting
-              // PokeAPI allows ~100 requests per minute, so ~600ms delay is safe
               await this.sleep(600);
             } catch (error) {
               errors++;
-              const errorMessage = error instanceof Error ? error.message : String(error);
-              
-              // If table doesn't exist, stop syncing immediately
-              if (errorMessage.includes('relation') && errorMessage.includes('does not exist')) {
-                this.logger.error(`Cannot continue sync: pokemon table does not exist. Stopped at ${synced} Pokémon.`);
-                hasMore = false;
-                break;
-              }
-              
               this.logger.error(
-                `Error syncing ${pokemonResult.name}: ${errorMessage}`,
+                `Error syncing ${pokemonResult.name}: ${error instanceof Error ? error.message : String(error)}`,
               );
-              
-              // Stop if too many errors occur (more than 10 consecutive errors)
+
               if (errors > 10 && synced === 0) {
                 this.logger.error('Too many errors, stopping sync.');
                 hasMore = false;
@@ -428,9 +301,8 @@ export class PokemonService {
             offset += batchSize;
           }
         } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : String(error);
           this.logger.error(
-            `Error fetching Pokémon list at offset ${offset}: ${errorMessage}`,
+            `Error fetching Pokémon list at offset ${offset}: ${error instanceof Error ? error.message : String(error)}`,
           );
           errors++;
           hasMore = false;
@@ -449,9 +321,6 @@ export class PokemonService {
     }
   }
 
-  /**
-   * Retry helper with exponential backoff for handling rate limits
-   */
   private async retryWithBackoff<T>(
     fn: () => Promise<T>,
     maxRetries = 3,
@@ -464,14 +333,13 @@ export class PokemonService {
         return await fn();
       } catch (error: any) {
         lastError = error instanceof Error ? error : new Error(String(error));
-        
-        // Check if it's a rate limit error (429)
-        const isRateLimit = error?.response?.status === 429 || 
-                           error?.status === 429 ||
-                           error?.message?.includes('429');
-        
+
+        const isRateLimit =
+          error?.response?.status === 429 ||
+          error?.status === 429 ||
+          error?.message?.includes('429');
+
         if (isRateLimit && attempt < maxRetries - 1) {
-          // Exponential backoff: 1s, 2s, 4s, etc.
           const delay = baseDelay * Math.pow(2, attempt);
           this.logger.warn(
             `Rate limited (429). Retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`,
@@ -479,8 +347,7 @@ export class PokemonService {
           await new Promise((resolve) => setTimeout(resolve, delay));
           continue;
         }
-        
-        // For non-rate-limit errors or final attempt, throw immediately
+
         throw error;
       }
     }
@@ -488,9 +355,6 @@ export class PokemonService {
     throw lastError || new Error('Failed after retries');
   }
 
-  /**
-   * Sleep helper for rate limiting
-   */
   private async sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
@@ -500,7 +364,7 @@ export class PokemonService {
     limit: number,
   ): Promise<PokemonListResponseDto> {
     const url = `${this.pokeApiBaseUrl}/pokemon?limit=${limit}&offset=${offset}`;
-    
+
     return this.retryWithBackoff(async () => {
       const response = await firstValueFrom(
         this.httpService.get<PokemonListResponseDto>(url),
@@ -525,7 +389,8 @@ export class PokemonService {
       const officialArtworkUrl =
         pokemonData.sprites?.other?.['official-artwork']?.front_default || '';
 
-      await this.pokemonRepository.upsert(
+      await this.pokemonModel.findOneAndUpdate(
+        { id: pokemonId },
         {
           id: pokemonId,
           name: pokemonName,
@@ -538,7 +403,7 @@ export class PokemonService {
           abilities: pokemonData.abilities || [],
           species: pokemonData.species || { name: pokemonName },
         },
-        ['id'],
+        { upsert: true, new: true },
       );
     } catch (error) {
       this.logger.error(
@@ -570,4 +435,3 @@ export class PokemonService {
     };
   }
 }
-

@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Pokemon } from '../entities/pokemon.entity';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { Pokemon, PokemonDocument } from '../entities/pokemon.entity';
 import { TeamEvaluateDto, TeamResponseDto } from '../common/dto/team.dto';
 import {
   getTypeEffectiveness,
@@ -11,8 +11,8 @@ import {
 @Injectable()
 export class TeamsService {
   constructor(
-    @InjectRepository(Pokemon)
-    private pokemonRepository: Repository<Pokemon>,
+    @InjectModel(Pokemon.name)
+    private pokemonModel: Model<PokemonDocument>,
   ) {}
 
   async evaluateTeam(teamDto: TeamEvaluateDto): Promise<TeamResponseDto> {
@@ -21,11 +21,11 @@ export class TeamsService {
         throw new NotFoundException('No Pokémon IDs provided');
       }
 
-    const pokemonList = await Promise.all(
-      teamDto.pokemonIds.map((id) =>
-        this.pokemonRepository.findOne({ where: { id } }),
-      ),
-    );
+      const pokemonList = await Promise.all(
+        teamDto.pokemonIds.map((id) =>
+          this.pokemonModel.findOne({ id }).lean().exec(),
+        ),
+      );
 
       const missingIndices: number[] = [];
       pokemonList.forEach((p, index) => {
@@ -36,64 +36,58 @@ export class TeamsService {
 
       if (missingIndices.length > 0) {
         throw new NotFoundException(
-          `Pokémon with IDs ${missingIndices.join(', ')} not found`
+          `Pokémon with IDs ${missingIndices.join(', ')} not found`,
         );
-    }
+      }
 
-    const teamData = pokemonList.map((p) => ({
-      id: p!.id,
-      name: p!.name,
-      types: getPokemonTypes(p!),
-    }));
+      const teamData = pokemonList.map((p) => ({
+        id: p!.id,
+        name: p!.name,
+        types: getPokemonTypes(p! as Pokemon),
+      }));
 
-    // Calculate type coverage
-    const allTypes = new Set<string>();
-    teamData.forEach((p) => {
-      p.types.forEach((type) => allTypes.add(type));
-    });
+      const allTypes = new Set<string>();
+      teamData.forEach((p) => {
+        p.types.forEach((type) => allTypes.add(type));
+      });
 
-    const allPokemonTypes = [
-      'normal', 'fire', 'water', 'electric', 'grass', 'ice',
-      'fighting', 'poison', 'ground', 'flying', 'psychic', 'bug',
-      'rock', 'ghost', 'dragon', 'dark', 'steel', 'fairy',
-    ];
+      const allPokemonTypes = [
+        'normal', 'fire', 'water', 'electric', 'grass', 'ice',
+        'fighting', 'poison', 'ground', 'flying', 'psychic', 'bug',
+        'rock', 'ghost', 'dragon', 'dark', 'steel', 'fairy',
+      ];
 
-    const covered = Array.from(allTypes);
-    const missing = allPokemonTypes.filter((t) => !allTypes.has(t));
-    const coverageScore = Math.round((covered.length / allPokemonTypes.length) * 100);
+      const covered = Array.from(allTypes);
+      const missing = allPokemonTypes.filter((t) => !allTypes.has(t));
+      const coverageScore = Math.round((covered.length / allPokemonTypes.length) * 100);
 
-    // Calculate weaknesses
-    const weaknesses = this.calculateWeaknesses(teamData);
+      const weaknesses = this.calculateWeaknesses(teamData);
+      const strengths = this.calculateStrengths(teamData);
 
-    // Calculate strengths (type advantages)
-    const strengths = this.calculateStrengths(teamData);
-
-    // Calculate overall score
-    const overallScore = this.calculateOverallScore(
-      teamData,
-      coverageScore,
-      weaknesses,
-    );
-
-    // Generate recommendations
-    const recommendations = this.generateRecommendations(
-      missing,
-      weaknesses,
-      teamData,
-    );
-
-    return {
-      team: teamData,
-      typeCoverage: {
-        covered,
-        missing,
+      const overallScore = this.calculateOverallScore(
+        teamData,
         coverageScore,
-      },
-      weaknesses,
-      strengths,
-      overallScore,
-      recommendations,
-    };
+        weaknesses,
+      );
+
+      const recommendations = this.generateRecommendations(
+        missing,
+        weaknesses,
+        teamData,
+      );
+
+      return {
+        team: teamData,
+        typeCoverage: {
+          covered,
+          missing,
+          coverageScore,
+        },
+        weaknesses,
+        strengths,
+        overallScore,
+        recommendations,
+      };
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw error;
@@ -109,7 +103,6 @@ export class TeamsService {
 
     team.forEach((pokemon) => {
       const types = pokemon.types;
-      // Check which types are super effective against this pokemon's types
       for (const defenderType of types) {
         for (const attackType of [
           'normal', 'fire', 'water', 'electric', 'grass', 'ice',
@@ -216,4 +209,3 @@ export class TeamsService {
     return recommendations;
   }
 }
-

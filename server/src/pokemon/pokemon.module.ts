@@ -1,15 +1,15 @@
 import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { MongooseModule } from '@nestjs/mongoose';
 import { HttpModule } from '@nestjs/axios';
 import { ScheduleModule } from '@nestjs/schedule';
-import { Pokemon } from '../entities/pokemon.entity';
-import { PokemonService } from './pokemon.service';
 import { PokemonController } from './pokemon.controller';
+import { PokemonService } from './pokemon.service';
 import { PokemonSyncService } from './pokemon-sync.service';
+import { Pokemon, PokemonSchema } from '../entities/pokemon.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Pokemon]),
+    MongooseModule.forFeature([{ name: Pokemon.name, schema: PokemonSchema }]),
     HttpModule,
     ScheduleModule.forRoot(),
   ],
@@ -18,4 +18,3 @@ import { PokemonSyncService } from './pokemon-sync.service';
   exports: [PokemonService, PokemonSyncService],
 })
 export class PokemonModule {}
-

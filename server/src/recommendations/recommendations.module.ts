@@ -1,16 +1,20 @@
 import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { RecommendationsService } from './recommendations.service';
+import { MongooseModule } from '@nestjs/mongoose';
 import { RecommendationsController } from './recommendations.controller';
-import { Pokemon } from '../entities/pokemon.entity';
-import { FavoritePokemon } from '../entities/favorite-pokemon.entity';
-import { Battle } from '../entities/battle.entity';
+import { RecommendationsService } from './recommendations.service';
+import { Pokemon, PokemonSchema } from '../entities/pokemon.entity';
+import { FavoritePokemon, FavoritePokemonSchema } from '../entities/favorite-pokemon.entity';
+import { Battle, BattleSchema } from '../entities/battle.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Pokemon, FavoritePokemon, Battle])],
+  imports: [
+    MongooseModule.forFeature([
+      { name: Pokemon.name, schema: PokemonSchema },
+      { name: FavoritePokemon.name, schema: FavoritePokemonSchema },
+      { name: Battle.name, schema: BattleSchema },
+    ]),
+  ],
   controllers: [RecommendationsController],
   providers: [RecommendationsService],
-  exports: [RecommendationsService],
 })
 export class RecommendationsModule {}
-

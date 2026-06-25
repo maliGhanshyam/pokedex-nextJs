@@ -30,6 +30,13 @@ export class PokemonController {
     return this.pokemonService.findAll({ limit: safeLimit, offset: offset || 0 });
   }
 
+  @Get('count')
+  @Header('Cache-Control', 'no-store')
+  async getCount(): Promise<{ count: number }> {
+    const count = await this.pokemonService.getCount();
+    return { count };
+  }
+
   @Get('types')
   @Header('Cache-Control', 'public, max-age=3600') // Cache for 1 hour (types don't change often)
   async findAllTypes(): Promise<string[]> {

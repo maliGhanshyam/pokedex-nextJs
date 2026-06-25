@@ -1,54 +1,29 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  CreateDateColumn,
-  ManyToOne,
-  JoinColumn,
-} from 'typeorm';
-import { User } from './user.entity';
-import { Pokemon } from './pokemon.entity';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { HydratedDocument } from 'mongoose';
 
-@Entity('battles')
+export type BattleDocument = HydratedDocument<Battle>;
+
+@Schema({ timestamps: { createdAt: true, updatedAt: false }, collection: 'battles' })
 export class Battle {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
-  @Column({ type: 'uuid' })
+  @Prop({ required: true, index: true })
   userId: string;
 
-  @Column({ type: 'int' })
+  @Prop({ required: true })
   pokemon1Id: number;
 
-  @Column({ type: 'int' })
+  @Prop({ required: true })
   pokemon2Id: number;
 
-  @Column({ type: 'int' })
+  @Prop({ required: true })
   winnerId: number;
 
-  @Column({ type: 'jsonb' })
+  @Prop({ type: [Object], default: [] })
   battleLog: any[];
 
-  @Column({ type: 'int' })
+  @Prop({ required: true })
   turns: number;
 
-  @CreateDateColumn()
-  createdAt: Date;
-
-  @ManyToOne(() => User)
-  @JoinColumn({ name: 'userId' })
-  user: User;
-
-  @ManyToOne(() => Pokemon)
-  @JoinColumn({ name: 'pokemon1Id' })
-  pokemon1: Pokemon;
-
-  @ManyToOne(() => Pokemon)
-  @JoinColumn({ name: 'pokemon2Id' })
-  pokemon2: Pokemon;
-
-  @ManyToOne(() => Pokemon)
-  @JoinColumn({ name: 'winnerId' })
-  winner: Pokemon;
+  createdAt?: Date;
 }
 
+export const BattleSchema = SchemaFactory.createForClass(Battle);

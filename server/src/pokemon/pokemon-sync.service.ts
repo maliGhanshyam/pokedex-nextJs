@@ -17,48 +17,35 @@ export class PokemonSyncService implements OnModuleInit {
 
   async onModuleInit() {
     this.logger.log('Application started, checking database...');
-    
-    // Make startup lightweight - don't block app startup
-    // Run sync check asynchronously after a short delay
-    setTimeout(async () => {
-      try {
-      // Check if tables exist and if there's data
-      const hasData = await this.pokemonService.hasData();
-      if (!hasData) {
-          this.logger.log('No Pokémon data found in database, triggering background sync...');
-          // Run sync in background - don't await to avoid blocking startup
-          this.triggerStartupSync().catch((error) => {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            this.logger.error(`Background sync failed: ${errorMessage}`);
-          });
-      } else {
-        this.logger.log('Pokémon data already exists in database, skipping startup sync.');
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      
-      // Check if error is due to missing tables (database not initialized)
-      if (errorMessage.includes('relation') && errorMessage.includes('does not exist')) {
-        this.logger.warn(
-          '⚠️  Database tables do not exist yet. To create them:',
-        );
-        this.logger.warn(
-          '   1. Go to your backend service on Render → Settings → Environment',
-        );
-        this.logger.warn(
-          '   2. Add: DB_SYNCHRONIZE=true',
-        );
-        this.logger.warn(
-          '   3. Save and wait for redeploy',
-        );
-        this.logger.warn(
-          '   Once tables are created, the sync will run automatically on next startup.',
-        );
-      } else {
-          this.logger.error(`Startup check failed: ${errorMessage}`);
-        }
-      }
-    }, 2000); // Short delay to ensure DB connection is ready, but don't block startup
+
+    setTimeout(() => {
+      this.triggerBackgroundSyncOnStartup().catch((error) => {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        this.logger.error(`Startup sync check failed: ${errorMessage}`);
+      });
+    }, 2000);
+  }
+
+  private async triggerBackgroundSyncOnStartup() {
+    const hasData = await this.pokemonService.hasData();
+
+    if (!hasData) {
+      this.logger.log('No Pokémon data found in database, triggering full background sync...');
+      this.runFullSyncInBackground();
+      return;
+    }
+
+    const needsSync = await this.pokemonService.needsIncrementalSync();
+    if (needsSync) {
+      const count = await this.pokemonService.getCount();
+      this.logger.log(
+        `Database has ${count} Pokémon but sync is incomplete, triggering incremental background sync...`,
+      );
+      this.runIncrementalSyncInBackground();
+      return;
+    }
+
+    this.logger.log('Pokémon database is up to date, skipping startup sync.');
   }
 
   @Cron(CronExpression.EVERY_DAY_AT_2AM)
@@ -72,7 +59,6 @@ export class PokemonSyncService implements OnModuleInit {
     this.logger.log('Starting scheduled Pokémon sync job...');
 
     try {
-      // Check if data exists before syncing
       const hasData = await this.pokemonService.hasData();
       if (!hasData) {
         this.logger.log('No Pokémon data found in database, starting sync...');
@@ -86,7 +72,6 @@ export class PokemonSyncService implements OnModuleInit {
           `Scheduled sync completed. Synced: ${result.synced}, Errors: ${result.errors}`,
         );
       } else {
-        // Check if we need to sync missing data (incremental sync)
         const needsSync = await this.pokemonService.needsIncrementalSync();
         if (needsSync) {
           this.logger.log('Incremental sync needed, syncing missing Pokémon...');
@@ -123,38 +108,62 @@ export class PokemonSyncService implements OnModuleInit {
     }
   }
 
-  private async triggerStartupSync() {
+  private runFullSyncInBackground() {
     if (this.isRunning) {
-      this.logger.warn('Sync already running, skipping startup sync...');
+      this.logger.warn('Sync already running, skipping full background sync...');
       return;
     }
 
     this.isRunning = true;
-    this.logger.log('Starting startup Pokémon sync job...');
+    this.logger.log('Starting full Pokémon background sync...');
 
-    try {
-      const result = await this.pokemonService.syncPokemon();
-      this.lastStatus = {
-        ...result,
-        timestamp: new Date(),
-      };
-      this.lastRun = new Date();
-      this.logger.log(
-        `Startup sync completed. Synced: ${result.synced}, Errors: ${result.errors}`,
-      );
-      return result;
-    } catch (error) {
-      this.logger.error(
-        `Startup sync failed: ${error instanceof Error ? error.message : String(error)}`,
-      );
-      this.lastStatus = {
-        synced: 0,
-        errors: 1,
-        timestamp: new Date(),
-      };
-    } finally {
-      this.isRunning = false;
+    this.pokemonService
+      .syncPokemon()
+      .then((result) => {
+        this.lastStatus = { ...result, timestamp: new Date() };
+        this.lastRun = new Date();
+        this.logger.log(
+          `Full background sync completed. Synced: ${result.synced}, Errors: ${result.errors}`,
+        );
+      })
+      .catch((error) => {
+        this.logger.error(
+          `Full background sync failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
+        this.lastStatus = { synced: 0, errors: 1, timestamp: new Date() };
+      })
+      .finally(() => {
+        this.isRunning = false;
+      });
+  }
+
+  private runIncrementalSyncInBackground() {
+    if (this.isRunning) {
+      this.logger.warn('Sync already running, skipping incremental background sync...');
+      return;
     }
+
+    this.isRunning = true;
+    this.logger.log('Starting incremental Pokémon background sync...');
+
+    this.pokemonService
+      .syncPokemonIncremental()
+      .then((result) => {
+        this.lastStatus = { ...result, timestamp: new Date() };
+        this.lastRun = new Date();
+        this.logger.log(
+          `Incremental background sync completed. Synced: ${result.synced}, Errors: ${result.errors}`,
+        );
+      })
+      .catch((error) => {
+        this.logger.error(
+          `Incremental background sync failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
+        this.lastStatus = { synced: 0, errors: 1, timestamp: new Date() };
+      })
+      .finally(() => {
+        this.isRunning = false;
+      });
   }
 
   async triggerManualSync() {
@@ -191,4 +200,3 @@ export class PokemonSyncService implements OnModuleInit {
     };
   }
 }
-

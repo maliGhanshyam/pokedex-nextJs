@@ -30,12 +30,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
       } else if (typeof exceptionResponse === 'object' && exceptionResponse !== null) {
         const responseObj = exceptionResponse as any;
         message = responseObj.message || message;
-        
-        // Include validation errors if present
+
         if (Array.isArray(responseObj.message)) {
           errorDetails = responseObj.message;
-        } else if (responseObj.error) {
-          errorDetails = responseObj.error;
         }
       }
     } else if (exception instanceof Error) {
@@ -76,8 +73,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
       message,
     };
 
-    // Only include error details for 4xx errors (validation errors, etc.)
-    if (errorDetails && status < 500) {
+    // Only replace message with validation error arrays
+    if (Array.isArray(errorDetails) && status < 500) {
       errorResponse.message = errorDetails;
     }
 
