@@ -6,10 +6,6 @@ const nextConfig = {
     config.resolve.alias["@"] = path.join(__dirname, "src");
     return config;
   },
-  // Output configuration for production only
-  ...(process.env.NODE_ENV === "production" && {
-    output: "standalone", // Creates a minimal server for deployment
-  }),
   // Optimize images
   images: {
     remotePatterns: [
