@@ -1,7 +1,7 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { authApi, AuthResponse } from '@/services/api';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { authApi } from '@/services/api';
 
 interface User {
   id: string;
@@ -25,65 +25,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const restoreSession = useCallback(async () => {
+    try {
+      const { user: sessionUser } = await authApi.getMe();
+      setUser(sessionUser);
+      localStorage.setItem('user', JSON.stringify(sessionUser));
+    } catch {
+      localStorage.removeItem('user');
+      setUser(null);
+    }
+  }, []);
+
   useEffect(() => {
-    // Check if user is logged in on mount
-    const checkAuth = () => {
-      const accessToken = localStorage.getItem('accessToken');
-      const userData = localStorage.getItem('user');
+    restoreSession().finally(() => setIsLoading(false));
 
-      if (accessToken && userData) {
-        try {
-          setUser(JSON.parse(userData));
-        } catch (error) {
-          console.error('Error parsing user data:', error);
-          localStorage.removeItem('accessToken');
-          localStorage.removeItem('refreshToken');
-          localStorage.removeItem('user');
-          setUser(null);
-        }
-      } else {
-        setUser(null);
-      }
-    };
-
-    checkAuth();
-    setIsLoading(false);
-
-    // Listen for unauthorized errors to sync user state
     const handleUnauthorized = () => {
       setUser(null);
+      localStorage.removeItem('user');
     };
 
     window.addEventListener('unauthorized', handleUnauthorized);
-    return () => {
-      window.removeEventListener('unauthorized', handleUnauthorized);
-    };
-  }, []);
+    return () => window.removeEventListener('unauthorized', handleUnauthorized);
+  }, [restoreSession]);
 
   const login = async (email: string, password: string) => {
-    try {
-    const response: AuthResponse = await authApi.login({ email, password });
-    localStorage.setItem('accessToken', response.accessToken);
-    localStorage.setItem('refreshToken', response.refreshToken);
+    const response = await authApi.login({ email, password });
     localStorage.setItem('user', JSON.stringify(response.user));
     setUser(response.user);
-    } catch (error) {
-      // Re-throw with user-friendly message (already handled in authApi)
-      throw error;
-    }
   };
 
   const signup = async (email: string, password: string, name?: string, username?: string) => {
-    try {
-    const response: AuthResponse = await authApi.signup({ email, password, name, username });
-    localStorage.setItem('accessToken', response.accessToken);
-    localStorage.setItem('refreshToken', response.refreshToken);
+    const response = await authApi.signup({ email, password, name, username });
     localStorage.setItem('user', JSON.stringify(response.user));
     setUser(response.user);
-    } catch (error) {
-      // Re-throw with user-friendly message (already handled in authApi)
-      throw error;
-    }
   };
 
   const logout = async () => {
@@ -92,8 +66,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
       localStorage.removeItem('user');
       setUser(null);
     }
@@ -122,4 +94,3 @@ export function useAuth() {
   }
   return context;
 }
-

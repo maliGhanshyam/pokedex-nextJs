@@ -27,17 +27,24 @@ export class LoginDto {
 
 export class RefreshTokenDto {
   @IsString()
-  refreshToken: string;
+  @IsOptional()
+  refreshToken?: string;
 }
 
+/** Returned to client — tokens are set as HttpOnly cookies, not in the body */
 export class AuthResponseDto {
-  accessToken: string;
-  refreshToken: string;
   user: {
     id: string;
     email: string;
     name?: string;
     username?: string;
   };
+}
+
+/** Internal shape used by AuthService before cookies are set */
+export interface AuthTokensResult {
+  accessToken: string;
+  refreshToken: string;
+  user: AuthResponseDto['user'];
 }
 

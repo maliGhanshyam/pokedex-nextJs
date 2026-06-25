@@ -4,22 +4,37 @@ import { AppModule } from './app.module';
 import { ConfigService } from '@nestjs/config';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import * as compression from 'compression';
+import * as cookieParser from 'cookie-parser';
+
+function parseCorsOrigins(raw: string): string | string[] {
+  const origins = raw
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+  return origins.length === 1 ? origins[0] : origins;
+}
 
 async function bootstrap() {
   try {
     const app = await NestFactory.create(AppModule);
 
     const configService = app.get(ConfigService);
-    // Use process.env.PORT directly (required by Render)
     const port = process.env.PORT || configService.get('PORT') || 3001;
-    const corsOrigin = configService.get('CORS_ORIGIN', 'http://localhost:3000');
+    const corsOrigin = parseCorsOrigins(
+      configService.get('CORS_ORIGIN', 'http://localhost:3000'),
+    );
 
-    // Enable compression for better performance
+    // Required for Secure cookies behind Render's reverse proxy
+    app.getHttpAdapter().getInstance().set('trust proxy', 1);
+
+    app.use(cookieParser());
     app.use(compression());
 
     app.enableCors({
       origin: corsOrigin,
       credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization'],
     });
 
     app.useGlobalPipes(
@@ -31,7 +46,6 @@ async function bootstrap() {
           enableImplicitConversion: true,
         },
         exceptionFactory: (errors) => {
-          // Format validation errors for better client-side handling
           const messages = errors.map((error) => {
             if (error.constraints) {
               return Object.values(error.constraints).join(', ');
@@ -50,7 +64,6 @@ async function bootstrap() {
       }),
     );
 
-    // Global exception filter for consistent error handling
     app.useGlobalFilters(new AllExceptionsFilter());
 
     await app.listen(port, '0.0.0.0');
@@ -62,4 +75,3 @@ async function bootstrap() {
 }
 
 bootstrap();
-

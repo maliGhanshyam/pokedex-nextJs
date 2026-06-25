@@ -1,25 +1,10 @@
-import axios from "axios";
+import api from "./api";
+import { API_BASE_URL, API_TIMEOUT } from "@/lib/api-config";
 import type {
   PokemonListResponse,
   PokemonDetails,
   PokemonListResult,
 } from "@/types/pokemon";
-
-// Get API base URL from environment variable
-// In production, this should be set via NEXT_PUBLIC_API_URL
-// Never use localhost in production code
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 
-  (typeof window !== 'undefined' ? window.location.origin.replace(/:\d+$/, ':3001') : 'http://localhost:3001');
-// Increase timeout for Render.com free tier which can take 30-60 seconds to wake up
-const API_TIMEOUT = parseInt(process.env.NEXT_PUBLIC_API_TIMEOUT || "60000", 10);
-
-const api = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: API_TIMEOUT,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
 
 /**
  * Fetch the list of Pokémon with optional pagination

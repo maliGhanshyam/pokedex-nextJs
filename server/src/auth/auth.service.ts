@@ -7,7 +7,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../users/users.service';
 import * as bcrypt from 'bcrypt';
-import { SignupDto, LoginDto, AuthResponseDto } from '../common/dto/auth.dto';
+import { SignupDto, LoginDto, AuthTokensResult } from '../common/dto/auth.dto';
 
 @Injectable()
 export class AuthService {
@@ -17,7 +17,7 @@ export class AuthService {
     private configService: ConfigService,
   ) {}
 
-  async signup(signupDto: SignupDto): Promise<AuthResponseDto> {
+  async signup(signupDto: SignupDto): Promise<AuthTokensResult> {
     const existingUser = await this.usersService.findByEmail(signupDto.email);
     if (existingUser) {
       throw new ConflictException('User with this email already exists');
@@ -54,7 +54,7 @@ export class AuthService {
     };
   }
 
-  async login(loginDto: LoginDto): Promise<AuthResponseDto> {
+  async login(loginDto: LoginDto): Promise<AuthTokensResult> {
     const user = await this.usersService.findByEmail(loginDto.email);
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
@@ -84,7 +84,7 @@ export class AuthService {
     };
   }
 
-  async refresh(refreshToken: string): Promise<AuthResponseDto> {
+  async refresh(refreshToken: string): Promise<AuthTokensResult> {
     try {
       const payload = await this.jwtService.verifyAsync(refreshToken, {
         secret: this.configService.get<string>('JWT_SECRET'),
@@ -113,6 +113,8 @@ export class AuthService {
         user: {
           id: user.id,
           email: user.email,
+          name: user.name,
+          username: user.username,
         },
       };
     } catch (error) {
@@ -122,6 +124,17 @@ export class AuthService {
 
   async logout(userId: string): Promise<void> {
     await this.usersService.updateRefreshToken(userId, null);
+  }
+
+  async logoutByRefreshToken(refreshToken: string): Promise<void> {
+    try {
+      const payload = await this.jwtService.verifyAsync(refreshToken, {
+        secret: this.configService.get<string>('JWT_SECRET'),
+      });
+      await this.usersService.updateRefreshToken(payload.sub, null);
+    } catch {
+      // Token invalid or expired — cookies will still be cleared
+    }
   }
 
   private async generateTokens(userId: string, email: string) {

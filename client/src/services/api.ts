@@ -1,112 +1,86 @@
 import axios from 'axios';
+import { API_BASE_URL, API_TIMEOUT } from '@/lib/api-config';
 
-// Re-export axios for use in other files
 export { axios };
 
-// Type guard for Axios errors
-const isAxiosError = (error: unknown): error is { 
+const isAxiosError = (error: unknown): error is {
   response?: { status: number; data?: any; statusText?: string };
   request?: any;
   code?: string;
   message: string;
-  config?: { url?: string };
+  config?: { url?: string; _retry?: boolean };
 } => {
   return typeof error === 'object' && error !== null && 'isAxiosError' in error;
 };
 
-// Get API base URL from environment variable
-// In production, this should be set via NEXT_PUBLIC_API_URL
-// Never use localhost in production code
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 
-  (typeof window !== 'undefined' ? window.location.origin.replace(/:\d+$/, ':3001') : 'http://localhost:3001');
-// Increase timeout for Render.com free tier which can take 30-60 seconds to wake up
-const API_TIMEOUT = parseInt(process.env.NEXT_PUBLIC_API_TIMEOUT || '60000', 10);
-
 const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: API_TIMEOUT,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Add token to requests if available
-api.interceptors.request.use((config) => {
-  if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('accessToken');
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-  }
-  return config;
-});
+let refreshPromise: Promise<void> | null = null;
 
-// Handle token refresh on 401 and redirect to login on unauthorized
+async function refreshSession(): Promise<void> {
+  if (!refreshPromise) {
+    refreshPromise = axios
+      .post(`${API_BASE_URL}/auth/refresh`, {}, { withCredentials: true, timeout: API_TIMEOUT })
+      .then(() => undefined)
+      .finally(() => {
+        refreshPromise = null;
+      });
+  }
+  return refreshPromise;
+}
+
+function silentClearSession() {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('user');
+    window.dispatchEvent(new CustomEvent('unauthorized'));
+  }
+}
+
+function clearSessionAndPromptLogin() {
+  silentClearSession();
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('showLoginModal'));
+  }
+}
+
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
 
-    // Handle 401 Unauthorized
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
+    if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
+      const url = originalRequest.url || '';
+      const isSilentAuthCheck = url.includes('/auth/me');
+      const isAuthRoute =
+        url.includes('/auth/login') ||
+        url.includes('/auth/signup') ||
+        url.includes('/auth/refresh');
 
-      try {
-        const refreshToken = localStorage.getItem('refreshToken');
-        if (refreshToken) {
-          const response = await axios.post<{ accessToken: string; refreshToken: string }>(`${API_BASE_URL}/auth/refresh`, {
-            refreshToken,
-          });
+      if (isSilentAuthCheck) {
+        return Promise.reject(error);
+      }
 
-          const { accessToken, refreshToken: newRefreshToken } = response.data;
-          localStorage.setItem('accessToken', accessToken);
-          localStorage.setItem('refreshToken', newRefreshToken);
-
-          if (originalRequest.headers) {
-          originalRequest.headers.Authorization = `Bearer ${accessToken}`;
-          }
+      if (!isAuthRoute) {
+        originalRequest._retry = true;
+        try {
+          await refreshSession();
           return api(originalRequest);
+        } catch {
+          clearSessionAndPromptLogin();
+          return Promise.reject(error);
         }
-      } catch (refreshError) {
-        // Refresh failed, clear tokens and trigger login
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-        localStorage.removeItem('user');
-        
-        // Dispatch events to trigger login modal and sync auth state
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('unauthorized'));
-          window.dispatchEvent(new CustomEvent('showLoginModal'));
-        }
-        
-        return Promise.reject(refreshError);
       }
-      
-      // No refresh token available, trigger login
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('user');
-      
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('unauthorized'));
-        window.dispatchEvent(new CustomEvent('showLoginModal'));
-      }
-      
-      return Promise.reject(error);
     }
 
-    // Handle 403 Forbidden
     if (error.response?.status === 403) {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('user');
-      
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('unauthorized'));
-        window.dispatchEvent(new CustomEvent('showLoginModal'));
-      }
-      
-      return Promise.reject(error);
+      clearSessionAndPromptLogin();
     }
 
     return Promise.reject(error);
@@ -126,8 +100,6 @@ export interface SignupDto {
 }
 
 export interface AuthResponse {
-  accessToken: string;
-  refreshToken: string;
   user: {
     id: string;
     email: string;
@@ -156,75 +128,72 @@ const getAuthErrorMessage = (error: unknown): string => {
     if (error.response) {
       const status = error.response.status;
       const data = error.response.data as any;
-      
+
       if (status === 400) {
         if (Array.isArray(data.message)) {
           return data.message.join('. ');
         }
         return data.message || 'Invalid input. Please check your credentials.';
       }
-      
+
       if (status === 401) {
         return data.message || 'Invalid email or password.';
       }
-      
+
       if (status === 409) {
         return data.message || 'User already exists with this email.';
       }
-      
+
       if (status >= 500) {
         return 'Server error. Please try again later.';
       }
-      
+
       return data.message || `Authentication failed with status ${status}`;
     }
-    
+
     if (error.request) {
       return 'No response from server. Please check your connection.';
     }
   }
-  
+
   if (error instanceof Error) {
     return error.message;
   }
-  
+
   return 'An unexpected error occurred during authentication.';
 };
 
 export const authApi = {
   login: async (credentials: LoginDto): Promise<AuthResponse> => {
     try {
-    const response = await api.post<AuthResponse>('/auth/login', credentials);
-    return response.data;
+      const response = await api.post<AuthResponse>('/auth/login', credentials);
+      return response.data;
     } catch (error) {
-      const errorMessage = getAuthErrorMessage(error);
-      const customError = new Error(errorMessage);
-      (customError as any).originalError = error;
-      throw customError;
+      throw new Error(getAuthErrorMessage(error));
     }
   },
 
   signup: async (data: SignupDto): Promise<AuthResponse> => {
     try {
-    const response = await api.post<AuthResponse>('/auth/signup', data);
-    return response.data;
+      const response = await api.post<AuthResponse>('/auth/signup', data);
+      return response.data;
     } catch (error) {
-      const errorMessage = getAuthErrorMessage(error);
-      const customError = new Error(errorMessage);
-      (customError as any).originalError = error;
-      throw customError;
+      throw new Error(getAuthErrorMessage(error));
     }
+  },
+
+  getMe: async (): Promise<AuthResponse> => {
+    const response = await api.get<AuthResponse>('/auth/me');
+    return response.data;
   },
 
   logout: async (): Promise<void> => {
     try {
-    await api.post('/auth/logout');
+      await api.post('/auth/logout');
     } catch (error) {
-      // Log error but don't throw - always clear local storage
       console.error('Logout error:', error);
     } finally {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
+      localStorage.removeItem('user');
     }
   },
 };
@@ -234,35 +203,35 @@ const getFavoritesErrorMessage = (error: unknown, action: string): string => {
     if (error.response) {
       const status = error.response.status;
       const data = error.response.data as any;
-      
+
       if (status === 401) {
         return 'Please log in to manage favorites.';
       }
-      
+
       if (status === 404) {
         return data.message || 'Pokémon not found.';
       }
-      
+
       if (status === 409) {
         return data.message || 'This Pokémon is already in your favorites.';
       }
-      
+
       if (status >= 500) {
         return `Server error while ${action}. Please try again later.`;
       }
-      
+
       return data.message || `Failed to ${action}. Please try again.`;
     }
-    
+
     if (error.request) {
       return `No response from server while ${action}. Please check your connection.`;
     }
   }
-  
+
   if (error instanceof Error) {
     return error.message;
   }
-  
+
   return `An unexpected error occurred while ${action}.`;
 };
 
@@ -270,7 +239,7 @@ export const favoritesApi = {
   getFavorites: async (): Promise<any[]> => {
     try {
       const response = await api.get<any[]>('/favorites');
-    return response.data;
+      return response.data;
     } catch (error) {
       const errorMessage = getFavoritesErrorMessage(error, 'loading favorites');
       const customError = new Error(errorMessage);
@@ -281,7 +250,7 @@ export const favoritesApi = {
 
   addFavorite: async (pokemonId: number): Promise<void> => {
     try {
-    await api.post(`/favorites/${pokemonId}`);
+      await api.post(`/favorites/${pokemonId}`);
     } catch (error) {
       const errorMessage = getFavoritesErrorMessage(error, 'adding favorite');
       const customError = new Error(errorMessage);
@@ -292,7 +261,7 @@ export const favoritesApi = {
 
   removeFavorite: async (pokemonId: number): Promise<void> => {
     try {
-    await api.delete(`/favorites/${pokemonId}`);
+      await api.delete(`/favorites/${pokemonId}`);
     } catch (error) {
       const errorMessage = getFavoritesErrorMessage(error, 'removing favorite');
       const customError = new Error(errorMessage);
@@ -305,16 +274,16 @@ export const favoritesApi = {
 export const usersApi = {
   getProfile: async (): Promise<UserProfile> => {
     try {
-    const response = await api.get<UserProfile>('/users/profile');
-    return response.data;
+      const response = await api.get<UserProfile>('/users/profile');
+      return response.data;
     } catch (error) {
       let errorMessage = 'Failed to load user profile.';
-      
+
       if (isAxiosError(error)) {
         if (error.response) {
           const status = error.response.status;
           const data = error.response.data as any;
-          
+
           if (status === 401) {
             errorMessage = 'Please log in to view your profile.';
           } else if (status === 404) {
@@ -330,7 +299,7 @@ export const usersApi = {
       } else if (error instanceof Error) {
         errorMessage = error.message;
       }
-      
+
       const customError = new Error(errorMessage);
       (customError as any).originalError = error;
       throw customError;
@@ -339,4 +308,3 @@ export const usersApi = {
 };
 
 export default api;
-
