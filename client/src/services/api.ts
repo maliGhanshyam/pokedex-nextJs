@@ -80,6 +80,15 @@ api.interceptors.response.use(
     }
 
     if (error.response?.status === 403) {
+      const data = error.response.data as { code?: string; action?: string; limit?: number; message?: string };
+      if (data?.code === 'GUEST_LIMIT_EXCEEDED') {
+        window.dispatchEvent(
+          new CustomEvent('guestLimitExceeded', {
+            detail: { action: data.action, limit: data.limit, message: data.message },
+          }),
+        );
+        return Promise.reject(error);
+      }
       clearSessionAndPromptLogin();
     }
 
@@ -99,13 +108,35 @@ export interface SignupDto {
   username?: string;
 }
 
+export interface GuestUsage {
+  battles: number;
+  favorites: number;
+  compares: number;
+  teamAnalyzes: number;
+  limit: number;
+}
+
 export interface AuthResponse {
   user: {
     id: string;
     email: string;
     name?: string;
     username?: string;
+    isGuest?: boolean;
   };
+  usage?: GuestUsage;
+}
+
+export interface BattleHistoryItem {
+  _id?: string;
+  pokemon1Id: number;
+  pokemon2Id: number;
+  winnerId: number;
+  turns: number;
+  createdAt?: string;
+  pokemon1?: { id: number; name: string } | null;
+  pokemon2?: { id: number; name: string } | null;
+  winner?: { id: number; name: string } | null;
 }
 
 export interface UserProfile {
@@ -113,7 +144,9 @@ export interface UserProfile {
   email: string;
   name?: string;
   username?: string;
+  isGuest?: boolean;
   createdAt: string;
+  usage?: GuestUsage;
   favorites: Array<{
     id: number;
     name: string;
@@ -121,6 +154,7 @@ export interface UserProfile {
     imageOfficial?: string;
     types: string[];
   }>;
+  battles?: BattleHistoryItem[];
 }
 
 const getAuthErrorMessage = (error: unknown): string => {
@@ -185,6 +219,15 @@ export const authApi = {
   getMe: async (): Promise<AuthResponse> => {
     const response = await api.get<AuthResponse>('/auth/me');
     return response.data;
+  },
+
+  loginAsGuest: async (): Promise<AuthResponse> => {
+    try {
+      const response = await api.post<AuthResponse>('/auth/guest');
+      return response.data;
+    } catch (error) {
+      throw new Error(getAuthErrorMessage(error));
+    }
   },
 
   logout: async (): Promise<void> => {

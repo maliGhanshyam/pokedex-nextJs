@@ -38,6 +38,14 @@ export class AuthResponseDto {
     email: string;
     name?: string;
     username?: string;
+    isGuest?: boolean;
+  };
+  usage?: {
+    battles: number;
+    favorites: number;
+    compares: number;
+    teamAnalyzes: number;
+    limit: number;
   };
 }
 

@@ -58,7 +58,8 @@ export default function PokemonFlipCard({ pokemon, priority = false }: PokemonFl
         setIsFavorite(false);
       } else {
         await favoritesApi.addFavorite(pokemonId);
-        setIsFavorite(true);
+      setIsFavorite(true);
+      window.dispatchEvent(new CustomEvent('guestUsageRefresh'));
       }
     } catch (error) {
       console.error('Error toggling favorite:', error);

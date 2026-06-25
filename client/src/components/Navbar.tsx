@@ -5,22 +5,40 @@ import { Suspense, useState, useRef, useEffect } from "react";
 import SearchBar from "./SearchBar";
 import { useAuth } from "@/context/AuthContext";
 import LoginModal from "./LoginModal";
+import GuestLimitModal, { GuestLimitDetail } from "./GuestLimitModal";
 
 const Navbar = () => {
-  const { isAuthenticated, user, logout } = useAuth();
+  const { isAuthenticated, user, logout, isGuest } = useAuth();
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [loginSignupMode, setLoginSignupMode] = useState(false);
+  const [showGuestLimitModal, setShowGuestLimitModal] = useState(false);
+  const [guestLimitDetail, setGuestLimitDetail] = useState<GuestLimitDetail | null>(null);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Listen for global login modal trigger events
   useEffect(() => {
     const handleShowLoginModal = () => {
+      setLoginSignupMode(false);
       setShowLoginModal(true);
+    };
+    const handleShowSignupModal = () => {
+      setLoginSignupMode(true);
+      setShowLoginModal(true);
+    };
+    const handleGuestLimit = (e: Event) => {
+      const detail = (e as CustomEvent<GuestLimitDetail>).detail ?? null;
+      setGuestLimitDetail(detail);
+      setShowGuestLimitModal(true);
     };
 
     window.addEventListener('showLoginModal', handleShowLoginModal);
+    window.addEventListener('showSignupModal', handleShowSignupModal);
+    window.addEventListener('guestLimitExceeded', handleGuestLimit);
     return () => {
       window.removeEventListener('showLoginModal', handleShowLoginModal);
+      window.removeEventListener('showSignupModal', handleShowSignupModal);
+      window.removeEventListener('guestLimitExceeded', handleGuestLimit);
     };
   }, []);
 
@@ -309,6 +327,17 @@ const Navbar = () => {
       <LoginModal
         isOpen={showLoginModal}
         onClose={() => setShowLoginModal(false)}
+        initialSignup={loginSignupMode}
+      />
+      <GuestLimitModal
+        isOpen={showGuestLimitModal}
+        onClose={() => setShowGuestLimitModal(false)}
+        detail={guestLimitDetail}
+        onSignup={() => {
+          setShowGuestLimitModal(false);
+          setLoginSignupMode(true);
+          setShowLoginModal(true);
+        }}
       />
     </>
   );

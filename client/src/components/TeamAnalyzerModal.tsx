@@ -187,6 +187,7 @@ export default function TeamAnalyzerModal({
       const data = await teamsApi.evaluate({ pokemonIds: team.map((p) => p.id) });
       setResult(data);
       setPhase('results');
+      window.dispatchEvent(new CustomEvent('guestUsageRefresh'));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to analyze team');
     } finally {

@@ -7,6 +7,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../users/users.service';
 import * as bcrypt from 'bcrypt';
+import { randomBytes } from 'crypto';
 import { SignupDto, LoginDto, AuthTokensResult } from '../common/dto/auth.dto';
 
 @Injectable()
@@ -50,6 +51,35 @@ export class AuthService {
         email: user.email,
         name: user.name,
         username: user.username,
+        isGuest: user.isGuest ?? false,
+      },
+    };
+  }
+
+  async createGuest(): Promise<AuthTokensResult> {
+    const random = randomBytes(8).toString('hex');
+    const email = `guest_${random}@guest.pokedex`;
+    const password = randomBytes(16).toString('hex');
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const user = await this.usersService.create({
+      email,
+      password: hashedPassword,
+      name: 'Guest Trainer',
+      isGuest: true,
+    });
+
+    const tokens = await this.generateTokens(user.id, user.email);
+    await this.usersService.updateRefreshToken(user.id, tokens.hashedRefreshToken);
+
+    return {
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        isGuest: true,
       },
     };
   }
@@ -80,6 +110,7 @@ export class AuthService {
         email: user.email,
         name: user.name,
         username: user.username,
+        isGuest: user.isGuest ?? false,
       },
     };
   }
@@ -115,6 +146,7 @@ export class AuthService {
           email: user.email,
           name: user.name,
           username: user.username,
+          isGuest: user.isGuest ?? false,
         },
       };
     } catch (error) {
@@ -124,6 +156,17 @@ export class AuthService {
 
   async logout(userId: string): Promise<void> {
     await this.usersService.updateRefreshToken(userId, null);
+  }
+
+  async getUserIdFromRefreshToken(refreshToken: string): Promise<string | null> {
+    try {
+      const payload = await this.jwtService.verifyAsync(refreshToken, {
+        secret: this.configService.get<string>('JWT_SECRET'),
+      });
+      return payload.sub ?? null;
+    } catch {
+      return null;
+    }
   }
 
   async logoutByRefreshToken(refreshToken: string): Promise<void> {

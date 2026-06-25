@@ -178,6 +178,7 @@ export default function CompareModal({
       };
       const result = await compareApi.compare(compareRequest);
       setCompareResult(result);
+      window.dispatchEvent(new CustomEvent('guestUsageRefresh'));
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to compare Pokémon. Please try again.';
       setError(errorMessage);

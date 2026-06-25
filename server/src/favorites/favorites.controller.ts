@@ -12,11 +12,15 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { User } from '../entities/user.entity';
 import { PokemonDetailsDto } from '../common/dto/pokemon.dto';
+import { GuestService } from '../guest/guest.service';
 
 @Controller('favorites')
 @UseGuards(JwtAuthGuard)
 export class FavoritesController {
-  constructor(private favoritesService: FavoritesService) {}
+  constructor(
+    private favoritesService: FavoritesService,
+    private guestService: GuestService,
+  ) {}
 
   @Get()
   async getUserFavorites(
@@ -30,6 +34,7 @@ export class FavoritesController {
     @CurrentUser() user: User,
     @Param('pokemonId', ParseIntPipe) pokemonId: number,
   ): Promise<{ message: string }> {
+    await this.guestService.assertGuestCanPerform(user, 'favorite');
     await this.favoritesService.addFavorite(user.id, pokemonId);
     return { message: 'Pokemon added to favorites' };
   }
@@ -43,4 +48,3 @@ export class FavoritesController {
     return { message: 'Pokemon removed from favorites' };
   }
 }
-

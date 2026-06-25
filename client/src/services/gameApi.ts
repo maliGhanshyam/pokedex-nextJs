@@ -223,6 +223,15 @@ export const battleApi = {
       throw new Error(errorMessage);
     }
   },
+  recordPlay: async (): Promise<{ recorded: boolean; usage?: import('./api').GuestUsage }> => {
+    try {
+      const response = await api.post('/battle/record');
+      return response.data;
+    } catch (error) {
+      const errorMessage = getErrorMessage(error, 'Failed to record battle.');
+      throw new Error(errorMessage);
+    }
+  },
 };
 
 export const compareApi = {

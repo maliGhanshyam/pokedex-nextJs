@@ -191,7 +191,13 @@ export default function BattleModal({
     if (pokemon2) setIsLoadingPokemon2(false);
   }, [pokemon2]);
 
-  const handleBattleEnd = (result: BattleEndResult) => {
+  const handleBattleEnd = async (result: BattleEndResult) => {
+    try {
+      await battleApi.recordPlay();
+      window.dispatchEvent(new CustomEvent('guestUsageRefresh'));
+    } catch {
+      return;
+    }
     setBattleResult(result);
     setSaveChoice('pending');
     setSaveError(null);
@@ -210,6 +216,7 @@ export default function BattleModal({
         turns: battleResult.hits,
       });
       setSaveChoice('saved');
+      window.dispatchEvent(new CustomEvent('guestUsageRefresh'));
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Failed to save');
     } finally {

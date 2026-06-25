@@ -19,6 +19,9 @@ export class User {
   @Prop({ unique: true, sparse: true })
   username?: string;
 
+  @Prop({ default: false })
+  isGuest?: boolean;
+
   @Prop()
   refreshToken?: string;
 

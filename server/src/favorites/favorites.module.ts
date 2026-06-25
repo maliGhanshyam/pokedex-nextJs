@@ -4,6 +4,7 @@ import { FavoritesController } from './favorites.controller';
 import { FavoritesService } from './favorites.service';
 import { FavoritePokemon, FavoritePokemonSchema } from '../entities/favorite-pokemon.entity';
 import { Pokemon, PokemonSchema } from '../entities/pokemon.entity';
+import { GuestModule } from '../guest/guest.module';
 
 @Module({
   imports: [
@@ -11,6 +12,7 @@ import { Pokemon, PokemonSchema } from '../entities/pokemon.entity';
       { name: FavoritePokemon.name, schema: FavoritePokemonSchema },
       { name: Pokemon.name, schema: PokemonSchema },
     ]),
+    GuestModule,
   ],
   controllers: [FavoritesController],
   providers: [FavoritesService],

@@ -13,6 +13,7 @@ import {
 import { Request, Response } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
+import { GuestService } from '../guest/guest.service';
 import {
   SignupDto,
   LoginDto,
@@ -22,6 +23,7 @@ import {
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { User } from '../entities/user.entity';
+import { UsersService } from '../users/users.service';
 import {
   setAuthCookies,
   clearAuthCookies,
@@ -33,6 +35,8 @@ export class AuthController {
   constructor(
     private authService: AuthService,
     private configService: ConfigService,
+    private guestService: GuestService,
+    private usersService: UsersService,
   ) {}
 
   @Post('signup')
@@ -55,6 +59,17 @@ export class AuthController {
     const result = await this.authService.login(loginDto);
     setAuthCookies(res, result.accessToken, result.refreshToken, this.configService);
     return { user: result.user };
+  }
+
+  @Post('guest')
+  @HttpCode(HttpStatus.OK)
+  async guestLogin(
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<AuthResponseDto> {
+    const result = await this.authService.createGuest();
+    setAuthCookies(res, result.accessToken, result.refreshToken, this.configService);
+    const usage = await this.guestService.getUsage(result.user.id);
+    return { user: result.user, usage };
   }
 
   @Post('refresh')
@@ -84,7 +99,15 @@ export class AuthController {
   ): Promise<{ message: string }> {
     const refreshToken = req.cookies?.[REFRESH_TOKEN_COOKIE];
     if (refreshToken) {
-      await this.authService.logoutByRefreshToken(refreshToken);
+      const userId = await this.authService.getUserIdFromRefreshToken(refreshToken);
+      if (userId) {
+        const user = await this.usersService.findOne(userId);
+        if (user?.isGuest) {
+          await this.guestService.wipeGuest(userId);
+        } else {
+          await this.authService.logoutByRefreshToken(refreshToken);
+        }
+      }
     }
     clearAuthCookies(res, this.configService);
     return { message: 'Logged out successfully' };
@@ -93,14 +116,19 @@ export class AuthController {
   @Get('me')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
-  getMe(@CurrentUser() user: User): AuthResponseDto {
-    return {
+  async getMe(@CurrentUser() user: User): Promise<AuthResponseDto> {
+    const response: AuthResponseDto = {
       user: {
         id: user.id,
         email: user.email,
         name: user.name,
         username: user.username,
+        isGuest: user.isGuest ?? false,
       },
     };
+    if (user.isGuest) {
+      response.usage = await this.guestService.getUsage(user.id);
+    }
+    return response;
   }
 }
