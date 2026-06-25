@@ -22,7 +22,8 @@ out/
 /.next/
 /out/
 .next/
-next-env.d.ts
+# Next.js (generated locally; Next creates this on build)
+/client/next-env.d.ts
 
 # NestJS
 dist/

@@ -1,5 +1,11 @@
 /** @type {import('next').NextConfig} */
+const path = require("path");
+
 const nextConfig = {
+  webpack: (config) => {
+    config.resolve.alias["@"] = path.join(__dirname, "src");
+    return config;
+  },
   // Output configuration for production only
   ...(process.env.NODE_ENV === "production" && {
     output: "standalone", // Creates a minimal server for deployment
