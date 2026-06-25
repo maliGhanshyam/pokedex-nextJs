@@ -16,6 +16,23 @@ export interface BattleRequest {
   pokemon2Id: number;
 }
 
+export interface SaveBattleRequest {
+  pokemon1Id: number;
+  pokemon2Id: number;
+  winnerId: number;
+  turns: number;
+  battleLog?: BattleLogEntry[];
+}
+
+export interface BattleEndResult {
+  winnerId: number;
+  winnerName: string;
+  loserId: number;
+  pokemon1Id: number;
+  pokemon2Id: number;
+  hits: number;
+}
+
 export interface BattleLogEntry {
   turn: number;
   attacker: string;
@@ -195,6 +212,15 @@ export const battleApi = {
       const customError = new Error(errorMessage);
       (customError as any).originalError = error;
       throw customError;
+    }
+  },
+  saveResult: async (payload: SaveBattleRequest): Promise<{ saved: boolean; message: string }> => {
+    try {
+      const response = await api.post<{ saved: boolean; message: string }>('/battle/save', payload);
+      return response.data;
+    } catch (error) {
+      const errorMessage = getErrorMessage(error, 'Failed to save battle result.');
+      throw new Error(errorMessage);
     }
   },
 };

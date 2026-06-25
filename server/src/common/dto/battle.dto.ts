@@ -1,4 +1,4 @@
-import { IsInt, IsNotEmpty, IsArray, ValidateNested } from 'class-validator';
+import { IsInt, IsNotEmpty, IsArray, IsOptional, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class BattleRequestDto {
@@ -20,6 +20,28 @@ export class BattleLogEntryDto {
   typeMultiplier: number;
   attackerHp: number;
   defenderHp: number;
+}
+
+export class SaveBattleDto {
+  @IsInt()
+  @IsNotEmpty()
+  pokemon1Id: number;
+
+  @IsInt()
+  @IsNotEmpty()
+  pokemon2Id: number;
+
+  @IsInt()
+  @IsNotEmpty()
+  winnerId: number;
+
+  @IsInt()
+  @IsNotEmpty()
+  turns: number;
+
+  @IsArray()
+  @IsOptional()
+  battleLog?: BattleLogEntryDto[];
 }
 
 export class BattleResponseDto {

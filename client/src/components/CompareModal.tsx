@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { compareApi, CompareResponse, CompareRequest } from '@/services/gameApi';
 import { pokemonTypeStyles } from '@/utils/pokemonTypes';
 import { PokemonDetails } from '@/types/pokemon';
 import { getPokemonImage } from '@/utils/pokemonImage';
-import Image from 'next/image';
+import { battleTheme } from '@/components/battle/battleTheme';
 
 interface CompareModalProps {
   isOpen: boolean;
@@ -14,6 +15,113 @@ interface CompareModalProps {
   pokemon2: PokemonDetails | null;
   onSelectPokemon1: () => void;
   onSelectPokemon2: () => void;
+}
+
+const STAT_KEYS = ['hp', 'attack', 'defense', 'speed'] as const;
+const STAT_LABELS: Record<(typeof STAT_KEYS)[number], string> = {
+  hp: 'HP',
+  attack: 'Attack',
+  defense: 'Defense',
+  speed: 'Speed',
+};
+
+function StatDuelBar({
+  label,
+  left,
+  right,
+  animate,
+}: {
+  label: string;
+  left: number;
+  right: number;
+  animate: boolean;
+}) {
+  const max = Math.max(left, right, 1);
+  const leftPct = animate ? (left / max) * 100 : 0;
+  const rightPct = animate ? (right / max) * 100 : 0;
+  const leftWins = left > right;
+  const rightWins = right > left;
+
+  return (
+    <div className="mb-4">
+      <div className="flex justify-between items-center mb-1.5 text-xs font-semibold">
+        <span style={{ color: leftWins ? battleTheme.oasis : battleTheme.slate }}>{left}</span>
+        <span style={{ color: battleTheme.navy }}>{label}</span>
+        <span style={{ color: rightWins ? battleTheme.livingCoral : battleTheme.slate }}>{right}</span>
+      </div>
+      <div className="flex items-center gap-1 h-3">
+        <div className="flex-1 h-full rounded-l-full overflow-hidden" style={{ backgroundColor: `${battleTheme.mist}` }}>
+          <div
+            className="h-full rounded-l-full transition-all duration-700 ease-out ml-auto"
+            style={{
+              width: `${leftPct}%`,
+              background: `linear-gradient(90deg, ${battleTheme.deepTeal}, ${battleTheme.oasis})`,
+            }}
+          />
+        </div>
+        <div className="w-0.5 h-4 rounded-full" style={{ backgroundColor: battleTheme.navy }} />
+        <div className="flex-1 h-full rounded-r-full overflow-hidden" style={{ backgroundColor: `${battleTheme.mist}` }}>
+          <div
+            className="h-full rounded-r-full transition-all duration-700 ease-out"
+            style={{
+              width: `${rightPct}%`,
+              background: `linear-gradient(90deg, ${battleTheme.livingCoral}, ${battleTheme.peachFuzz})`,
+            }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PokemonSlot({
+  pokemon,
+  isLoading,
+  accent,
+  label,
+  onSelect,
+}: {
+  pokemon: PokemonDetails | null;
+  isLoading: boolean;
+  accent: string;
+  label: string;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className="rounded-xl p-4 transition-all w-full"
+      style={{
+        border: `2px ${pokemon ? 'solid' : 'dashed'} ${pokemon ? accent : `${battleTheme.slate}66`}`,
+        backgroundColor: pokemon ? `${accent}18` : `${battleTheme.mist}66`,
+      }}
+    >
+      {isLoading ? (
+        <div className="h-28 flex items-center justify-center">
+          <div
+            className="w-10 h-10 rounded-full border-2 border-t-transparent animate-spin"
+            style={{ borderColor: accent, borderTopColor: 'transparent' }}
+          />
+        </div>
+      ) : pokemon ? (
+        <>
+          <Image src={getPokemonImage(pokemon)} alt={pokemon.name} width={96} height={96} className="mx-auto" />
+          <p className="font-semibold capitalize mt-2 text-center" style={{ color: battleTheme.navy }}>
+            {pokemon.name}
+          </p>
+          <p className="text-[10px] mt-1 text-center" style={{ color: battleTheme.slate }}>
+            Tap to change
+          </p>
+        </>
+      ) : (
+        <div className="h-28 flex flex-col items-center justify-center" style={{ color: battleTheme.slate }}>
+          <span className="text-2xl">+</span>
+          <span className="text-xs mt-1">{label}</span>
+        </div>
+      )}
+    </button>
+  );
 }
 
 export default function CompareModal({
@@ -29,40 +137,34 @@ export default function CompareModal({
   const [isLoadingPokemon1, setIsLoadingPokemon1] = useState(false);
   const [isLoadingPokemon2, setIsLoadingPokemon2] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [image1Loading, setImage1Loading] = useState(true);
-  const [image2Loading, setImage2Loading] = useState(true);
-  const [compareImage1Loading, setCompareImage1Loading] = useState(true);
-  const [compareImage2Loading, setCompareImage2Loading] = useState(true);
+  const [barsAnimated, setBarsAnimated] = useState(false);
 
-  // Reset state when modal closes
   useEffect(() => {
     if (!isOpen) {
       setCompareResult(null);
       setIsLoading(false);
       setIsLoadingPokemon1(false);
       setIsLoadingPokemon2(false);
-      setImage1Loading(true);
-      setImage2Loading(true);
-      setCompareImage1Loading(true);
-      setCompareImage2Loading(true);
       setError(null);
+      setBarsAnimated(false);
     }
   }, [isOpen]);
 
-  // Clear loading state when pokemon is set
   useEffect(() => {
-    if (pokemon1) {
-      setIsLoadingPokemon1(false);
-      setImage1Loading(true);
-    }
+    if (pokemon1) setIsLoadingPokemon1(false);
   }, [pokemon1]);
 
   useEffect(() => {
-    if (pokemon2) {
-      setIsLoadingPokemon2(false);
-      setImage2Loading(true);
-    }
+    if (pokemon2) setIsLoadingPokemon2(false);
   }, [pokemon2]);
+
+  useEffect(() => {
+    if (compareResult) {
+      setBarsAnimated(false);
+      const t = requestAnimationFrame(() => setBarsAnimated(true));
+      return () => cancelAnimationFrame(t);
+    }
+  }, [compareResult]);
 
   const handleCompare = async () => {
     if (!pokemon1 || !pokemon2) return;
@@ -76,11 +178,8 @@ export default function CompareModal({
       };
       const result = await compareApi.compare(compareRequest);
       setCompareResult(result);
-    } catch (error) {
-      console.error('Compare error:', error);
-      const errorMessage = error instanceof Error 
-        ? error.message 
-        : 'Failed to compare Pokémon. Please try again.';
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to compare Pokémon. Please try again.';
       setError(errorMessage);
     } finally {
       setIsLoading(false);
@@ -89,377 +188,287 @@ export default function CompareModal({
 
   if (!isOpen) return null;
 
+  const p1Win = compareResult?.winProbability.pokemon1 ?? 50;
+  const p2Win = compareResult?.winProbability.pokemon2 ?? 50;
+  const favored =
+    compareResult && p1Win !== p2Win
+      ? p1Win > p2Win
+        ? compareResult.pokemon1.name
+        : compareResult.pokemon2.name
+      : null;
+
   return (
     <div
-      className="fixed inset-0 bg-gray-900 bg-opacity-75 backdrop-blur-sm flex items-center justify-center z-50 p-4 modal-overlay-enter"
+      className="fixed inset-0 flex items-center justify-center z-50 p-2 sm:p-4 modal-overlay-enter"
+      style={{ backgroundColor: `${battleTheme.navy}e6` }}
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto modal-content-enter"
+        className="relative rounded-2xl shadow-2xl max-w-4xl w-full max-h-[95vh] overflow-y-auto modal-content-enter"
+        style={{ backgroundColor: battleTheme.buttercream, border: `3px solid ${battleTheme.classicBlue}` }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex justify-between items-center z-10">
-          <h2 className="text-3xl font-bold text-gray-800">⚖️ Compare Pokémon</h2>
+        <div
+          className="sticky top-0 z-10 flex justify-between items-center px-5 py-3"
+          style={{ background: `linear-gradient(90deg, ${battleTheme.navy}, ${battleTheme.classicBlue})` }}
+        >
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.25em]" style={{ color: battleTheme.peachFuzz }}>
+              Stat Analysis
+            </p>
+            <h2 className="text-xl sm:text-2xl font-bold" style={{ color: battleTheme.buttercream }}>
+              Compare Pokémon
+            </h2>
+          </div>
           <button
+            type="button"
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 text-3xl font-bold"
+            className="w-9 h-9 rounded-full text-xl font-bold transition-colors"
+            style={{ backgroundColor: `${battleTheme.mist}22`, color: battleTheme.buttercream }}
           >
             ×
           </button>
         </div>
 
-        <div className="p-6">
+        <div className="p-5 sm:p-8">
           {error && (
-            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <div className="flex items-center">
-                <span className="text-red-600 mr-2">⚠️</span>
-                <p className="text-red-800 text-sm">{error}</p>
-              </div>
-              <button
-                onClick={() => setError(null)}
-                className="mt-2 text-red-600 hover:text-red-800 text-xs underline"
-              >
+            <div
+              className="mb-4 p-4 rounded-xl flex items-start justify-between gap-3"
+              style={{ backgroundColor: `${battleTheme.livingCoral}22`, border: `1px solid ${battleTheme.livingCoral}55` }}
+            >
+              <p className="text-sm" style={{ color: battleTheme.navy }}>{error}</p>
+              <button type="button" onClick={() => setError(null)} className="text-xs underline shrink-0" style={{ color: battleTheme.livingCoral }}>
                 Dismiss
               </button>
             </div>
           )}
-          {!compareResult ? (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div
-                  className={`border-2 rounded-xl p-4 cursor-pointer transition-all ${
-                    pokemon1
-                      ? 'border-green-500 bg-green-50'
-                      : 'border-dashed border-gray-300 hover:border-orange-400'
-                  }`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsLoadingPokemon1(true);
-                    onSelectPokemon1();
-                  }}
-                >
-                  {isLoadingPokemon1 ? (
-                    <div className="text-center animate-pulse">
-                      <div className="w-24 h-24 bg-gray-200 rounded-lg mx-auto mb-3"></div>
-                      <div className="h-5 bg-gray-200 rounded w-24 mx-auto mb-2"></div>
-                      <div className="text-xs text-gray-400">Loading...</div>
-                    </div>
-                  ) : pokemon1 ? (
-                    <div className="text-center animate-fadeIn relative">
-                      {image1Loading && (
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="w-24 h-24 bg-gray-200 rounded-lg animate-pulse"></div>
-                        </div>
-                      )}
-                      <Image
-                        src={getPokemonImage(pokemon1)}
-                        alt={pokemon1.name}
-                        width={120}
-                        height={120}
-                        className={`mx-auto transition-opacity duration-300 ${
-                          image1Loading ? 'opacity-0' : 'opacity-100'
-                        }`}
-                        onLoad={() => setImage1Loading(false)}
-                        onError={() => setImage1Loading(false)}
-                      />
-                      <h3 className="text-xl font-bold capitalize mt-2">
-                        {pokemon1.name}
-                      </h3>
-                      <div className="text-xs text-gray-500 mt-1">Click to change</div>
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-gray-400">
-                      <div className="text-4xl mb-2">➕</div>
-                      <div>Select Pokémon 1</div>
-                    </div>
-                  )}
-                </div>
 
-                <div
-                  className={`border-2 rounded-xl p-4 cursor-pointer transition-all ${
-                    pokemon2
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-dashed border-gray-300 hover:border-orange-400'
-                  }`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsLoadingPokemon2(true);
-                    onSelectPokemon2();
-                  }}
-                >
-                  {isLoadingPokemon2 ? (
-                    <div className="text-center animate-pulse">
-                      <div className="w-24 h-24 bg-gray-200 rounded-lg mx-auto mb-3"></div>
-                      <div className="h-5 bg-gray-200 rounded w-24 mx-auto mb-2"></div>
-                      <div className="text-xs text-gray-400">Loading...</div>
-                    </div>
-                  ) : pokemon2 ? (
-                    <div className="text-center animate-fadeIn relative">
-                      {image2Loading && (
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="w-24 h-24 bg-gray-200 rounded-lg animate-pulse"></div>
-                        </div>
-                      )}
-                      <Image
-                        src={getPokemonImage(pokemon2)}
-                        alt={pokemon2.name}
-                        width={120}
-                        height={120}
-                        className={`mx-auto transition-opacity duration-300 ${
-                          image2Loading ? 'opacity-0' : 'opacity-100'
-                        }`}
-                        onLoad={() => setImage2Loading(false)}
-                        onError={() => setImage2Loading(false)}
-                      />
-                      <h3 className="text-xl font-bold capitalize mt-2">
-                        {pokemon2.name}
-                      </h3>
-                      <div className="text-xs text-gray-500 mt-1">Click to change</div>
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-gray-400">
-                      <div className="text-4xl mb-2">➕</div>
-                      <div>Select Pokémon 2</div>
-                    </div>
-                  )}
+          {!compareResult ? (
+            <div>
+              <div
+                className="rounded-2xl p-6 sm:p-8 mb-6"
+                style={{
+                  background: `linear-gradient(145deg, ${battleTheme.classicBlue}18, ${battleTheme.oasis}12)`,
+                  border: `2px solid ${battleTheme.classicBlue}44`,
+                }}
+              >
+                <div className="grid grid-cols-[1fr_auto_1fr] gap-4 items-center">
+                  <PokemonSlot
+                    pokemon={pokemon1}
+                    isLoading={isLoadingPokemon1}
+                    accent={battleTheme.oasis}
+                    label="First Pokémon"
+                    onSelect={() => {
+                      setIsLoadingPokemon1(true);
+                      onSelectPokemon1();
+                    }}
+                  />
+                  <span className="text-2xl sm:text-4xl font-black px-1" style={{ color: battleTheme.classicBlue }}>
+                    VS
+                  </span>
+                  <PokemonSlot
+                    pokemon={pokemon2}
+                    isLoading={isLoadingPokemon2}
+                    accent={battleTheme.livingCoral}
+                    label="Second Pokémon"
+                    onSelect={() => {
+                      setIsLoadingPokemon2(true);
+                      onSelectPokemon2();
+                    }}
+                  />
                 </div>
               </div>
 
+              <p className="text-center text-sm mb-4" style={{ color: battleTheme.slate }}>
+                Side-by-side stats, type advantages, and win probability
+              </p>
+
               <button
+                type="button"
                 onClick={handleCompare}
                 disabled={!pokemon1 || !pokemon2 || isLoading || isLoadingPokemon1 || isLoadingPokemon2}
-                className="w-full bg-orange-500 text-white py-3 px-6 rounded-xl font-bold text-lg hover:bg-orange-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full py-4 rounded-xl font-bold text-lg uppercase tracking-wide transition-all disabled:opacity-40"
+                style={{
+                  background: `linear-gradient(90deg, ${battleTheme.deepTeal}, ${battleTheme.classicBlue})`,
+                  color: battleTheme.buttercream,
+                }}
               >
-                {isLoading ? 'Comparing...' : '⚖️ Compare'}
+                {isLoading ? 'Analyzing…' : 'Run Comparison'}
               </button>
             </div>
           ) : (
-            <div className="space-y-6">
-              {/* Stats Comparison */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-green-50 rounded-xl p-6 border-2 border-green-200">
-                  <div className="text-center mb-4 relative">
-                    {compareImage1Loading && (
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="w-20 h-20 bg-gray-300 rounded-lg animate-pulse"></div>
-                      </div>
-                    )}
+            <div className="space-y-6 animate-fadeIn">
+              <div className="grid grid-cols-2 gap-4">
+                {[compareResult.pokemon1, compareResult.pokemon2].map((mon, idx) => (
+                  <div
+                    key={mon.id}
+                    className="rounded-xl p-4 text-center"
+                    style={{
+                      backgroundColor: idx === 0 ? `${battleTheme.oasis}15` : `${battleTheme.livingCoral}15`,
+                      border: `2px solid ${idx === 0 ? battleTheme.oasis : battleTheme.livingCoral}44`,
+                    }}
+                  >
                     <Image
-                      src={getPokemonImage(pokemon1)}
-                      alt={compareResult.pokemon1.name}
-                      width={100}
-                      height={100}
-                      className={`mx-auto transition-opacity duration-300 ${
-                        compareImage1Loading ? 'opacity-0' : 'opacity-100'
-                      }`}
-                      onLoad={() => setCompareImage1Loading(false)}
-                      onError={() => setCompareImage1Loading(false)}
+                      src={getPokemonImage(pokemon1 && pokemon2 ? (idx === 0 ? pokemon1 : pokemon2) : null)}
+                      alt={mon.name}
+                      width={88}
+                      height={88}
+                      className="mx-auto"
                     />
-                    <h3 className="text-2xl font-bold capitalize mt-2">
-                      {compareResult.pokemon1.name}
+                    <h3 className="text-lg font-bold capitalize mt-2" style={{ color: battleTheme.navy }}>
+                      {mon.name}
                     </h3>
-                    <div className="flex gap-2 justify-center mt-2">
-                      {compareResult.pokemon1.types.map((type) => (
+                    <div className="flex flex-wrap gap-1 justify-center mt-2">
+                      {mon.types.map((type) => (
                         <span
                           key={type}
-                          className="px-3 py-1 rounded-full text-xs font-bold text-white"
-                          style={{
-                            backgroundColor: pokemonTypeStyles[type]?.bg || '#gray',
-                          }}
+                          className="px-2 py-0.5 rounded-full text-[10px] font-bold text-white"
+                          style={{ backgroundColor: pokemonTypeStyles[type]?.bg || battleTheme.slate }}
                         >
                           {type.toUpperCase()}
                         </span>
                       ))}
                     </div>
+                    <p className="text-2xl font-black mt-2" style={{ color: idx === 0 ? battleTheme.deepTeal : battleTheme.livingCoral }}>
+                      {mon.totalStats}
+                    </p>
+                    <p className="text-[10px] uppercase tracking-wider" style={{ color: battleTheme.slate }}>
+                      Total BST
+                    </p>
                   </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span>HP:</span>
-                      <span className="font-bold">{compareResult.pokemon1.stats.hp}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Attack:</span>
-                      <span className="font-bold">{compareResult.pokemon1.stats.attack}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Defense:</span>
-                      <span className="font-bold">{compareResult.pokemon1.stats.defense}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Speed:</span>
-                      <span className="font-bold">{compareResult.pokemon1.stats.speed}</span>
-                    </div>
-                    <div className="border-t pt-2 mt-2">
-                      <div className="flex justify-between font-bold text-lg">
-                        <span>Total:</span>
-                        <span>{compareResult.pokemon1.totalStats}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                ))}
+              </div>
 
-                <div className="bg-blue-50 rounded-xl p-6 border-2 border-blue-200">
-                  <div className="text-center mb-4 relative">
-                    {compareImage2Loading && (
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="w-20 h-20 bg-gray-300 rounded-lg animate-pulse"></div>
-                      </div>
-                    )}
-                    <Image
-                      src={getPokemonImage(pokemon2)}
-                      alt={compareResult.pokemon2.name}
-                      width={100}
-                      height={100}
-                      className={`mx-auto transition-opacity duration-300 ${
-                        compareImage2Loading ? 'opacity-0' : 'opacity-100'
-                      }`}
-                      onLoad={() => setCompareImage2Loading(false)}
-                      onError={() => setCompareImage2Loading(false)}
-                    />
-                    <h3 className="text-2xl font-bold capitalize mt-2">
-                      {compareResult.pokemon2.name}
-                    </h3>
-                    <div className="flex gap-2 justify-center mt-2">
-                      {compareResult.pokemon2.types.map((type) => (
-                        <span
-                          key={type}
-                          className="px-3 py-1 rounded-full text-xs font-bold text-white"
-                          style={{
-                            backgroundColor: pokemonTypeStyles[type]?.bg || '#gray',
-                          }}
-                        >
-                          {type.toUpperCase()}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span>HP:</span>
-                      <span className="font-bold">{compareResult.pokemon2.stats.hp}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Attack:</span>
-                      <span className="font-bold">{compareResult.pokemon2.stats.attack}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Defense:</span>
-                      <span className="font-bold">{compareResult.pokemon2.stats.defense}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Speed:</span>
-                      <span className="font-bold">{compareResult.pokemon2.stats.speed}</span>
-                    </div>
-                    <div className="border-t pt-2 mt-2">
-                      <div className="flex justify-between font-bold text-lg">
-                        <span>Total:</span>
-                        <span>{compareResult.pokemon2.totalStats}</span>
-                      </div>
-                    </div>
-                  </div>
+              <div
+                className="rounded-xl p-5"
+                style={{ backgroundColor: `${battleTheme.classicBlue}12`, border: `1px solid ${battleTheme.classicBlue}33` }}
+              >
+                <h3 className="text-sm font-bold uppercase tracking-wider text-center mb-4" style={{ color: battleTheme.navy }}>
+                  Stat Duel
+                </h3>
+                {STAT_KEYS.map((key) => (
+                  <StatDuelBar
+                    key={key}
+                    label={STAT_LABELS[key]}
+                    left={compareResult.pokemon1.stats[key]}
+                    right={compareResult.pokemon2.stats[key]}
+                    animate={barsAnimated}
+                  />
+                ))}
+              </div>
+
+              <div
+                className="rounded-xl p-5"
+                style={{ background: `linear-gradient(135deg, ${battleTheme.peachFuzz}33, ${battleTheme.classicBlue}18)` }}
+              >
+                <h3 className="text-sm font-bold uppercase tracking-wider text-center mb-1" style={{ color: battleTheme.navy }}>
+                  Win Probability
+                </h3>
+                {favored && (
+                  <p className="text-center text-xs mb-3 capitalize" style={{ color: battleTheme.deepTeal }}>
+                    {favored} has the edge
+                  </p>
+                )}
+                <div className="flex justify-between text-sm font-bold mb-2 capitalize">
+                  <span style={{ color: battleTheme.oasis }}>{compareResult.pokemon1.name} {p1Win}%</span>
+                  <span style={{ color: battleTheme.livingCoral }}>{p2Win}% {compareResult.pokemon2.name}</span>
+                </div>
+                <div className="h-5 rounded-full overflow-hidden flex shadow-inner" style={{ backgroundColor: battleTheme.mist }}>
+                  <div
+                    className="h-full transition-all duration-1000 ease-out"
+                    style={{
+                      width: barsAnimated ? `${p1Win}%` : '50%',
+                      background: `linear-gradient(90deg, ${battleTheme.deepTeal}, ${battleTheme.oasis})`,
+                    }}
+                  />
+                  <div
+                    className="h-full transition-all duration-1000 ease-out"
+                    style={{
+                      width: barsAnimated ? `${p2Win}%` : '50%',
+                      background: `linear-gradient(90deg, ${battleTheme.livingCoral}, ${battleTheme.peachFuzz})`,
+                    }}
+                  />
                 </div>
               </div>
 
-              {/* Win Probability */}
-              <div className="bg-gradient-to-r from-orange-100 to-yellow-100 rounded-xl p-6">
-                <h3 className="text-xl font-bold mb-4 text-center">Win Probability</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <div className="flex justify-between mb-2">
-                      <span className="font-semibold capitalize">
-                        {compareResult.pokemon1.name}
-                      </span>
-                      <span className="font-bold">{compareResult.winProbability.pokemon1}%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-4">
-                      <div
-                        className="bg-green-500 h-4 rounded-full transition-all duration-500"
-                        style={{ width: `${compareResult.winProbability.pokemon1}%` }}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex justify-between mb-2">
-                      <span className="font-semibold capitalize">
-                        {compareResult.pokemon2.name}
-                      </span>
-                      <span className="font-bold">{compareResult.winProbability.pokemon2}%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-4">
-                      <div
-                        className="bg-blue-500 h-4 rounded-full transition-all duration-500"
-                        style={{ width: `${compareResult.winProbability.pokemon2}%` }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Strengths & Weaknesses */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-yellow-50 rounded-xl p-4">
-                  <h4 className="font-bold mb-2">Strengths</h4>
-                  <div className="space-y-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div
+                  className="rounded-xl p-4"
+                  style={{ backgroundColor: `${battleTheme.oasis}12`, border: `1px solid ${battleTheme.oasis}44` }}
+                >
+                  <h4 className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: battleTheme.deepTeal }}>
+                    Type Advantages
+                  </h4>
+                  <div className="space-y-3 text-sm">
                     <div>
-                      <span className="font-semibold capitalize">
+                      <span className="font-semibold capitalize" style={{ color: battleTheme.navy }}>
                         {compareResult.pokemon1.name}:
                       </span>
-                      <div className="text-sm text-gray-600 mt-1">
+                      <p className="mt-0.5 capitalize" style={{ color: battleTheme.slate }}>
                         {compareResult.strengths.pokemon1Advantages.length > 0
                           ? compareResult.strengths.pokemon1Advantages.join(', ')
-                          : 'None'}
-                      </div>
+                          : 'No clear advantage'}
+                      </p>
                     </div>
                     <div>
-                      <span className="font-semibold capitalize">
+                      <span className="font-semibold capitalize" style={{ color: battleTheme.navy }}>
                         {compareResult.pokemon2.name}:
                       </span>
-                      <div className="text-sm text-gray-600 mt-1">
+                      <p className="mt-0.5 capitalize" style={{ color: battleTheme.slate }}>
                         {compareResult.strengths.pokemon2Advantages.length > 0
                           ? compareResult.strengths.pokemon2Advantages.join(', ')
-                          : 'None'}
-                      </div>
+                          : 'No clear advantage'}
+                      </p>
                     </div>
                   </div>
                 </div>
 
-                <div className="bg-red-50 rounded-xl p-4">
-                  <h4 className="font-bold mb-2">Weaknesses</h4>
-                  <div className="space-y-2">
+                <div
+                  className="rounded-xl p-4"
+                  style={{ backgroundColor: `${battleTheme.livingCoral}12`, border: `1px solid ${battleTheme.livingCoral}44` }}
+                >
+                  <h4 className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: battleTheme.livingCoral }}>
+                    Type Weaknesses
+                  </h4>
+                  <div className="space-y-3 text-sm">
                     <div>
-                      <span className="font-semibold capitalize">
+                      <span className="font-semibold capitalize" style={{ color: battleTheme.navy }}>
                         {compareResult.pokemon1.name}:
                       </span>
-                      <div className="text-sm text-gray-600 mt-1">
+                      <p className="mt-0.5 capitalize" style={{ color: battleTheme.slate }}>
                         {compareResult.weaknesses.pokemon1Weaknesses.length > 0
                           ? compareResult.weaknesses.pokemon1Weaknesses.join(', ')
-                          : 'None'}
-                      </div>
+                          : 'No major weakness'}
+                      </p>
                     </div>
                     <div>
-                      <span className="font-semibold capitalize">
+                      <span className="font-semibold capitalize" style={{ color: battleTheme.navy }}>
                         {compareResult.pokemon2.name}:
                       </span>
-                      <div className="text-sm text-gray-600 mt-1">
+                      <p className="mt-0.5 capitalize" style={{ color: battleTheme.slate }}>
                         {compareResult.weaknesses.pokemon2Weaknesses.length > 0
                           ? compareResult.weaknesses.pokemon2Weaknesses.join(', ')
-                          : 'None'}
-                      </div>
+                          : 'No major weakness'}
+                      </p>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="flex gap-4">
+              <div className="flex gap-3 pt-2">
                 <button
+                  type="button"
                   onClick={() => setCompareResult(null)}
-                  className="flex-1 bg-gray-200 text-gray-800 py-2 px-4 rounded-lg font-semibold hover:bg-gray-300 transition-colors"
+                  className="flex-1 py-3 rounded-xl font-semibold transition-all"
+                  style={{ backgroundColor: `${battleTheme.mist}`, color: battleTheme.navy }}
                 >
                   Compare Again
                 </button>
                 <button
+                  type="button"
                   onClick={onClose}
-                  className="flex-1 bg-orange-500 text-white py-2 px-4 rounded-lg font-semibold hover:bg-orange-600 transition-colors"
+                  className="flex-1 py-3 rounded-xl font-bold transition-all hover:brightness-110"
+                  style={{ backgroundColor: battleTheme.classicBlue, color: battleTheme.buttercream }}
                 >
                   Close
                 </button>
@@ -471,4 +480,3 @@ export default function CompareModal({
     </div>
   );
 }
-

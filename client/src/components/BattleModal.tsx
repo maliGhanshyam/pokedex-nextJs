@@ -1,10 +1,12 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { battleApi, BattleResponse, BattleRequest, BattleLogEntry } from '@/services/gameApi';
+import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { PokemonDetails } from '@/types/pokemon';
 import { getPokemonImage } from '@/utils/pokemonImage';
-import Image from 'next/image';
+import InteractiveBattleArena from '@/components/battle/InteractiveBattleArena';
+import { battleTheme } from '@/components/battle/battleTheme';
+import { battleApi, BattleEndResult } from '@/services/gameApi';
 
 interface BattleModalProps {
   isOpen: boolean;
@@ -15,52 +17,18 @@ interface BattleModalProps {
   onSelectPokemon2: () => void;
 }
 
-function getHpAtTurn(
-  log: BattleLogEntry | undefined,
-  p1Name: string,
-  max1: number,
-  max2: number,
-): { hp1: number; hp2: number } {
-  if (!log) return { hp1: max1, hp2: max2 };
-  if (log.attacker === p1Name) {
-    return { hp1: log.attackerHp, hp2: log.defenderHp };
-  }
-  return { hp1: log.defenderHp, hp2: log.attackerHp };
-}
-
-function HpBar({ current, max, label, align }: { current: number; max: number; label: string; align: 'left' | 'right' }) {
-  const pct = Math.max(0, Math.min(100, (current / max) * 100));
-  const barColor =
-    pct > 50 ? 'bg-green-400' : pct > 20 ? 'bg-yellow-400' : 'bg-red-500';
-
-  return (
-    <div className={`w-full max-w-[200px] ${align === 'right' ? 'ml-auto' : ''}`}>
-      <div className={`flex items-center gap-2 mb-1 ${align === 'right' ? 'flex-row-reverse' : ''}`}>
-        <span className="text-xs font-bold uppercase tracking-wide text-white drop-shadow">{label}</span>
-        <span className="text-[10px] font-mono text-white/80">{current}/{max}</span>
-      </div>
-      <div className="h-3 rounded-full bg-gray-900/60 border-2 border-white/30 overflow-hidden shadow-inner">
-        <div
-          className={`h-full ${barColor} transition-all duration-500 ease-out rounded-full`}
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-    </div>
-  );
-}
-
 function Confetti() {
-  const colors = ['#ef4444', '#f59e0b', '#22c55e', '#3b82f6', '#a855f7', '#ec4899'];
+  const colors = [battleTheme.oasis, battleTheme.peachFuzz, battleTheme.classicBlue, battleTheme.livingCoral, battleTheme.buttercream];
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden">
-      {Array.from({ length: 40 }).map((_, i) => (
+      {Array.from({ length: 36 }).map((_, i) => (
         <span
           key={i}
-          className="absolute w-2 h-3 rounded-sm opacity-90"
+          className="absolute w-2 h-3 rounded-sm"
           style={{
-            left: `${(i * 2.5) % 100}%`,
+            left: `${(i * 2.8) % 100}%`,
             backgroundColor: colors[i % colors.length],
-            animation: `confettiFall ${2 + (i % 5) * 0.4}s linear ${(i % 8) * 0.15}s infinite`,
+            animation: `confettiFall ${2 + (i % 4) * 0.35}s linear ${(i % 6) * 0.12}s infinite`,
           }}
         />
       ))}
@@ -68,59 +36,121 @@ function Confetti() {
   );
 }
 
+type SaveChoice = 'pending' | 'saved' | 'skipped';
+
 function VictoryOverlay({
   winnerImage,
-  winnerName,
-  turns,
+  result,
+  saveChoice,
+  isSaving,
+  saveError,
+  onSave,
+  onSkipSave,
   onDismiss,
 }: {
   winnerImage: string;
-  winnerName: string;
-  turns: number;
+  result: BattleEndResult;
+  saveChoice: SaveChoice;
+  isSaving: boolean;
+  saveError: string | null;
+  onSave: () => void;
+  onSkipSave: () => void;
   onDismiss: () => void;
 }) {
+  const canContinue = saveChoice !== 'pending';
+
   return (
-    <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm animate-fadeIn">
+    <div
+      className="absolute inset-0 z-50 flex items-center justify-center animate-fadeIn"
+      style={{ backgroundColor: `${battleTheme.navy}dd` }}
+    >
       <Confetti />
       <div className="relative text-center px-6 py-8 max-w-sm w-full">
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-48 h-48 rounded-full border-4 border-amber-400/50 animate-victory-ring" />
+          <div
+            className="w-48 h-48 rounded-full border-4 animate-victory-ring"
+            style={{ borderColor: `${battleTheme.oasis}88` }}
+          />
         </div>
-
         <div className="relative animate-victory-pop">
-          <p className="text-5xl font-black animate-victory-shine mb-2 tracking-tighter">
-            VICTORY!
+          <p className="text-4xl sm:text-5xl font-black mb-3 tracking-tight" style={{ color: battleTheme.peachFuzz }}>
+            VICTORY
           </p>
-          <div className="relative mx-auto w-36 h-36 mb-4 animate-pulse-glow rounded-full bg-gradient-to-b from-amber-300/30 to-transparent p-2">
-            <Image
-              src={winnerImage}
-              alt={winnerName}
-              width={140}
-              height={140}
-              className="mx-auto drop-shadow-2xl"
-            />
+          <div
+            className="relative mx-auto w-32 h-32 mb-4 rounded-full p-2 animate-pulse-glow"
+            style={{ background: `linear-gradient(180deg, ${battleTheme.oasis}44, transparent)` }}
+          >
+            <Image src={winnerImage} alt={result.winnerName} width={120} height={120} className="mx-auto drop-shadow-xl" />
           </div>
-          <h3 className="text-2xl font-black capitalize text-white drop-shadow-lg mb-1">
-            {winnerName}
+          <h3 className="text-2xl font-bold capitalize mb-1" style={{ color: battleTheme.buttercream }}>
+            {result.winnerName}
           </h3>
-          <p className="text-amber-200 text-sm mb-1">wins the battle!</p>
-          <p className="text-white/60 text-xs mb-6">
-            Decided in {turns} turn{turns !== 1 ? 's' : ''}
+          <p className="text-sm mb-4" style={{ color: `${battleTheme.mist}bb` }}>
+            {result.hits} collision{result.hits !== 1 ? 's' : ''} decided the fight
           </p>
 
-          <div className="flex gap-3 justify-center">
-            <button
-              onClick={onDismiss}
-              className="px-6 py-2.5 bg-gradient-to-r from-amber-400 to-orange-500 text-gray-900 font-bold rounded-xl hover:from-amber-300 hover:to-orange-400 transition-all shadow-lg shadow-amber-500/30"
+          {saveChoice === 'pending' && (
+            <div
+              className="mb-4 p-4 rounded-xl text-left"
+              style={{ backgroundColor: `${battleTheme.classicBlue}55`, border: `1px solid ${battleTheme.mist}33` }}
             >
-              Continue
-            </button>
-          </div>
+              <p className="text-sm font-semibold mb-3" style={{ color: battleTheme.buttercream }}>
+                Save this match to your history?
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={onSave}
+                  disabled={isSaving}
+                  className="flex-1 py-2 rounded-lg text-sm font-bold transition-all disabled:opacity-50"
+                  style={{ backgroundColor: battleTheme.oasis, color: battleTheme.navy }}
+                >
+                  {isSaving ? 'Saving…' : 'Yes, save'}
+                </button>
+                <button
+                  type="button"
+                  onClick={onSkipSave}
+                  disabled={isSaving}
+                  className="flex-1 py-2 rounded-lg text-sm font-semibold transition-all"
+                  style={{ backgroundColor: `${battleTheme.mist}33`, color: battleTheme.buttercream }}
+                >
+                  No thanks
+                </button>
+              </div>
+              {saveError && (
+                <p className="text-xs mt-2" style={{ color: battleTheme.livingCoral }}>{saveError}</p>
+              )}
+            </div>
+          )}
+
+          {saveChoice === 'saved' && (
+            <p className="text-sm mb-4 font-medium" style={{ color: battleTheme.oasis }}>
+              Match saved to your history
+            </p>
+          )}
+
+          {saveChoice === 'skipped' && (
+            <p className="text-sm mb-4" style={{ color: `${battleTheme.mist}99` }}>
+              Result not saved
+            </p>
+          )}
+
+          <button
+            type="button"
+            onClick={onDismiss}
+            disabled={!canContinue}
+            className="px-8 py-2.5 font-bold rounded-xl transition-all hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed"
+            style={{ backgroundColor: battleTheme.classicBlue, color: battleTheme.buttercream }}
+          >
+            Continue
+          </button>
         </div>
       </div>
     </div>
   );
 }
+
+type Phase = 'select' | 'battle';
 
 export default function BattleModal({
   isOpen,
@@ -130,141 +160,68 @@ export default function BattleModal({
   onSelectPokemon1,
   onSelectPokemon2,
 }: BattleModalProps) {
-  const [battleResult, setBattleResult] = useState<BattleResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [currentTurn, setCurrentTurn] = useState(0);
-  const [isAnimating, setIsAnimating] = useState(false);
+  const [phase, setPhase] = useState<Phase>('select');
+  const [battleKey, setBattleKey] = useState(0);
   const [showVictory, setShowVictory] = useState(false);
-  const [attackSide, setAttackSide] = useState<'left' | 'right' | null>(null);
-  const [hitSide, setHitSide] = useState<'left' | 'right' | null>(null);
-  const [damagePopup, setDamagePopup] = useState<{ side: 'left' | 'right'; amount: number; superEffective: boolean } | null>(null);
-  const [screenShake, setScreenShake] = useState(false);
-  const [battleMessage, setBattleMessage] = useState('');
+  const [battleResult, setBattleResult] = useState<BattleEndResult | null>(null);
+  const [saveChoice, setSaveChoice] = useState<SaveChoice>('pending');
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [isLoadingPokemon1, setIsLoadingPokemon1] = useState(false);
   const [isLoadingPokemon2, setIsLoadingPokemon2] = useState(false);
-  const [image1Loading, setImage1Loading] = useState(true);
-  const [image2Loading, setImage2Loading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const resetBattleAnim = useCallback(() => {
-    setAttackSide(null);
-    setHitSide(null);
-    setDamagePopup(null);
-    setScreenShake(false);
-  }, []);
 
   useEffect(() => {
     if (!isOpen) {
-      setBattleResult(null);
-      setCurrentTurn(0);
-      setIsLoading(false);
-      setIsAnimating(false);
+      setPhase('select');
       setShowVictory(false);
-      resetBattleAnim();
-      setBattleMessage('');
+      setBattleResult(null);
+      setSaveChoice('pending');
+      setIsSaving(false);
+      setSaveError(null);
       setIsLoadingPokemon1(false);
       setIsLoadingPokemon2(false);
-      setImage1Loading(true);
-      setImage2Loading(true);
-      setError(null);
     }
-  }, [isOpen, resetBattleAnim]);
+  }, [isOpen]);
 
   useEffect(() => {
-    if (pokemon1) {
-      setIsLoadingPokemon1(false);
-      setImage1Loading(true);
-    }
+    if (pokemon1) setIsLoadingPokemon1(false);
   }, [pokemon1]);
 
   useEffect(() => {
-    if (pokemon2) {
-      setIsLoadingPokemon2(false);
-      setImage2Loading(true);
-    }
+    if (pokemon2) setIsLoadingPokemon2(false);
   }, [pokemon2]);
 
-  const currentLog = battleResult?.battleLog.slice(0, currentTurn) || [];
-  const lastLog = currentLog[currentLog.length - 1];
-  const isComplete = battleResult ? currentTurn >= battleResult.battleLog.length && !isAnimating : false;
+  const handleBattleEnd = (result: BattleEndResult) => {
+    setBattleResult(result);
+    setSaveChoice('pending');
+    setSaveError(null);
+    setShowVictory(true);
+  };
 
-  const { hp1, hp2 } = useMemo(() => {
-    if (!battleResult || !pokemon1) return { hp1: 0, hp2: 0 };
-    return getHpAtTurn(
-      lastLog,
-      pokemon1.name,
-      battleResult.pokemon1Stats.hp,
-      battleResult.pokemon2Stats.hp,
-    );
-  }, [battleResult, lastLog, pokemon1]);
-
-  useEffect(() => {
-    if (!battleResult || !pokemon1) return;
-
-    if (currentTurn >= battleResult.battleLog.length) {
-      if (!showVictory) {
-        const timer = setTimeout(() => setShowVictory(true), 400);
-        return () => clearTimeout(timer);
-      }
-      return;
-    }
-
-    const log = battleResult.battleLog[currentTurn];
-    const p1IsAttacker = log.attacker === pokemon1.name;
-    const attackerSide = p1IsAttacker ? 'left' : 'right';
-    const defenderSide = p1IsAttacker ? 'right' : 'left';
-
-    setBattleMessage(
-      log.typeMultiplier > 1
-        ? `It's super effective! ${log.damage} damage!`
-        : log.typeMultiplier < 1 && log.typeMultiplier > 0
-          ? `Not very effective… ${log.damage} damage.`
-          : `${log.move}! ${log.damage} damage!`,
-    );
-
-    setIsAnimating(true);
-    resetBattleAnim();
-
-    const t1 = setTimeout(() => setAttackSide(attackerSide), 50);
-    const t2 = setTimeout(() => {
-      setHitSide(defenderSide);
-      setDamagePopup({ side: defenderSide, amount: log.damage, superEffective: log.typeMultiplier > 1 });
-      if (log.typeMultiplier > 1) setScreenShake(true);
-    }, 300);
-    const t3 = setTimeout(() => {
-      setCurrentTurn((prev) => prev + 1);
-      resetBattleAnim();
-      setIsAnimating(false);
-    }, 1100);
-
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
-    };
-  }, [battleResult, currentTurn, pokemon1, showVictory, resetBattleAnim]);
-
-  const handleBattle = async () => {
-    if (!pokemon1 || !pokemon2) return;
-
-    setIsLoading(true);
-    setBattleResult(null);
-    setCurrentTurn(0);
-    setShowVictory(false);
-    setError(null);
-    setBattleMessage(`${pokemon1.name} vs ${pokemon2.name} — Fight!`);
-
+  const handleSave = async () => {
+    if (!battleResult) return;
+    setIsSaving(true);
+    setSaveError(null);
     try {
-      const result = await battleApi.simulate({
-        pokemon1Id: pokemon1.id,
-        pokemon2Id: pokemon2.id,
+      await battleApi.saveResult({
+        pokemon1Id: battleResult.pokemon1Id,
+        pokemon2Id: battleResult.pokemon2Id,
+        winnerId: battleResult.winnerId,
+        turns: battleResult.hits,
       });
-      setBattleResult(result);
+      setSaveChoice('saved');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to simulate battle.');
+      setSaveError(err instanceof Error ? err.message : 'Failed to save');
     } finally {
-      setIsLoading(false);
+      setIsSaving(false);
     }
+  };
+
+  const handleRematch = () => {
+    setShowVictory(false);
+    setBattleResult(null);
+    setSaveChoice('pending');
+    setBattleKey((k) => k + 1);
   };
 
   const winnerImage =
@@ -276,244 +233,143 @@ export default function BattleModal({
 
   return (
     <div
-      className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4 modal-overlay-enter"
+      className="fixed inset-0 flex items-center justify-center z-50 p-2 sm:p-4 modal-overlay-enter"
+      style={{ backgroundColor: `${battleTheme.navy}e6` }}
       onClick={onClose}
     >
       <div
-        className={`relative bg-gray-900 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[95vh] overflow-hidden border-4 border-gray-700 modal-content-enter ${screenShake ? 'animate-battle-shake' : ''}`}
+        className="relative rounded-2xl shadow-2xl max-w-4xl w-full max-h-[95vh] overflow-hidden modal-content-enter"
+        style={{ backgroundColor: battleTheme.buttercream, border: `3px solid ${battleTheme.classicBlue}` }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="relative z-10 flex justify-between items-center px-5 py-3 bg-gradient-to-r from-red-900 via-gray-900 to-blue-900 border-b border-white/10">
+        <div
+          className="flex justify-between items-center px-5 py-3"
+          style={{ background: `linear-gradient(90deg, ${battleTheme.navy}, ${battleTheme.classicBlue})` }}
+        >
           <div>
-            <p className="text-[10px] uppercase tracking-[0.3em] text-amber-400/80">Pokémon Arena</p>
-            <h2 className="text-xl sm:text-2xl font-black text-white">Battle Simulator</h2>
+            <p className="text-[10px] uppercase tracking-[0.25em]" style={{ color: battleTheme.peachFuzz }}>
+              Interactive Arena
+            </p>
+            <h2 className="text-xl sm:text-2xl font-bold" style={{ color: battleTheme.buttercream }}>
+              Battle Simulator
+            </h2>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="w-9 h-9 rounded-full bg-white/10 text-white hover:bg-white/20 text-xl font-bold transition-colors"
+            className="w-9 h-9 rounded-full text-xl font-bold transition-colors"
+            style={{ backgroundColor: `${battleTheme.mist}22`, color: battleTheme.buttercream }}
           >
             ×
           </button>
         </div>
 
-        {error && (
-          <div className="mx-4 mt-3 p-3 bg-red-900/50 border border-red-500/50 rounded-lg text-red-200 text-sm">
-            {error}
-            <button onClick={() => setError(null)} className="ml-2 underline text-xs">Dismiss</button>
-          </div>
-        )}
-
-        {!battleResult ? (
-          /* ── Fighter selection ── */
+        {phase === 'select' ? (
           <div className="p-5 sm:p-8">
-            <div className="relative rounded-2xl overflow-hidden bg-gradient-to-b from-indigo-900 via-purple-900 to-green-900 p-6 sm:p-10 mb-6">
-              <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-green-700/80 to-transparent" />
-              <div className="relative grid grid-cols-[1fr_auto_1fr] gap-4 items-center">
-                {/* Fighter 1 */}
+            <div
+              className="rounded-2xl p-6 sm:p-8 mb-6"
+              style={{
+                background: `linear-gradient(145deg, ${battleTheme.classicBlue}18, ${battleTheme.oasis}15)`,
+                border: `2px solid ${battleTheme.classicBlue}44`,
+              }}
+            >
+              <div className="grid grid-cols-[1fr_auto_1fr] gap-4 items-center">
                 <button
                   type="button"
                   onClick={() => { setIsLoadingPokemon1(true); onSelectPokemon1(); }}
-                  className={`relative rounded-xl p-4 transition-all ${
-                    pokemon1
-                      ? 'bg-red-500/20 border-2 border-red-400 ring-2 ring-red-400/30'
-                      : 'bg-white/5 border-2 border-dashed border-white/30 hover:border-amber-400'
-                  }`}
+                  className="rounded-xl p-4 transition-all"
+                  style={{
+                    border: `2px ${pokemon1 ? 'solid' : 'dashed'} ${pokemon1 ? battleTheme.oasis : battleTheme.slate}66`,
+                    backgroundColor: pokemon1 ? `${battleTheme.oasis}18` : `${battleTheme.mist}66`,
+                  }}
                 >
                   {isLoadingPokemon1 ? (
                     <div className="h-28 flex items-center justify-center">
-                      <div className="w-16 h-16 rounded-full border-4 border-white/20 border-t-amber-400 animate-spin" />
+                      <div className="w-10 h-10 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: battleTheme.classicBlue, borderTopColor: 'transparent' }} />
                     </div>
                   ) : pokemon1 ? (
                     <>
-                      <Image src={getPokemonImage(pokemon1)} alt={pokemon1.name} width={100} height={100} className="mx-auto drop-shadow-lg" />
-                      <p className="text-white font-bold capitalize mt-2 text-center">{pokemon1.name}</p>
+                      <Image src={getPokemonImage(pokemon1)} alt={pokemon1.name} width={96} height={96} className="mx-auto" />
+                      <p className="font-semibold capitalize mt-2 text-center" style={{ color: battleTheme.navy }}>{pokemon1.name}</p>
                     </>
                   ) : (
-                    <div className="h-28 flex flex-col items-center justify-center text-white/50">
-                      <span className="text-3xl mb-1">+</span>
-                      <span className="text-xs">Choose fighter</span>
+                    <div className="h-28 flex flex-col items-center justify-center" style={{ color: battleTheme.slate }}>
+                      <span className="text-2xl">+</span>
+                      <span className="text-xs mt-1">Your fighter</span>
                     </div>
                   )}
                 </button>
 
-                <div className="text-center px-2">
-                  <span className="text-3xl sm:text-5xl font-black text-amber-400 drop-shadow-[0_0_12px_rgba(251,191,36,0.6)]">VS</span>
-                </div>
+                <span className="text-2xl sm:text-4xl font-black" style={{ color: battleTheme.livingCoral }}>VS</span>
 
-                {/* Fighter 2 */}
                 <button
                   type="button"
                   onClick={() => { setIsLoadingPokemon2(true); onSelectPokemon2(); }}
-                  className={`relative rounded-xl p-4 transition-all ${
-                    pokemon2
-                      ? 'bg-blue-500/20 border-2 border-blue-400 ring-2 ring-blue-400/30'
-                      : 'bg-white/5 border-2 border-dashed border-white/30 hover:border-amber-400'
-                  }`}
+                  className="rounded-xl p-4 transition-all"
+                  style={{
+                    border: `2px ${pokemon2 ? 'solid' : 'dashed'} ${pokemon2 ? battleTheme.livingCoral : battleTheme.slate}66`,
+                    backgroundColor: pokemon2 ? `${battleTheme.livingCoral}18` : `${battleTheme.mist}66`,
+                  }}
                 >
                   {isLoadingPokemon2 ? (
                     <div className="h-28 flex items-center justify-center">
-                      <div className="w-16 h-16 rounded-full border-4 border-white/20 border-t-amber-400 animate-spin" />
+                      <div className="w-10 h-10 rounded-full border-2 animate-spin" style={{ borderColor: battleTheme.livingCoral, borderTopColor: 'transparent' }} />
                     </div>
                   ) : pokemon2 ? (
                     <>
-                      <Image src={getPokemonImage(pokemon2)} alt={pokemon2.name} width={100} height={100} className="mx-auto drop-shadow-lg scale-x-[-1]" />
-                      <p className="text-white font-bold capitalize mt-2 text-center">{pokemon2.name}</p>
+                      <Image src={getPokemonImage(pokemon2)} alt={pokemon2.name} width={96} height={96} className="mx-auto scale-x-[-1]" />
+                      <p className="font-semibold capitalize mt-2 text-center" style={{ color: battleTheme.navy }}>{pokemon2.name}</p>
                     </>
                   ) : (
-                    <div className="h-28 flex flex-col items-center justify-center text-white/50">
-                      <span className="text-3xl mb-1">+</span>
-                      <span className="text-xs">Choose fighter</span>
+                    <div className="h-28 flex flex-col items-center justify-center" style={{ color: battleTheme.slate }}>
+                      <span className="text-2xl">+</span>
+                      <span className="text-xs mt-1">Opponent</span>
                     </div>
                   )}
                 </button>
               </div>
             </div>
 
+            <p className="text-center text-sm mb-4" style={{ color: battleTheme.slate }}>
+              Drag your Pokémon to aim · release to attack · touch supported on mobile
+            </p>
+
             <button
-              onClick={handleBattle}
-              disabled={!pokemon1 || !pokemon2 || isLoading}
-              className="w-full py-4 rounded-xl font-black text-lg uppercase tracking-wider bg-gradient-to-r from-red-600 via-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/30 hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              type="button"
+              onClick={() => setPhase('battle')}
+              disabled={!pokemon1 || !pokemon2}
+              className="w-full py-4 rounded-xl font-bold text-lg uppercase tracking-wide transition-all disabled:opacity-40"
+              style={{ background: `linear-gradient(90deg, ${battleTheme.classicBlue}, ${battleTheme.deepTeal})`, color: battleTheme.buttercream }}
             >
-              {isLoading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Entering arena…
-                </span>
-              ) : (
-                'Begin Battle'
-              )}
+              Enter Arena
             </button>
           </div>
         ) : (
-          /* ── Battle arena ── */
-          <div className="relative">
-            <div className="relative min-h-[420px] sm:min-h-[480px] bg-gradient-to-b from-sky-400 via-sky-300 to-green-600 overflow-hidden">
-              {/* Clouds */}
-              <div className="absolute top-4 left-8 w-20 h-8 bg-white/40 rounded-full blur-sm" />
-              <div className="absolute top-8 right-12 w-28 h-10 bg-white/30 rounded-full blur-sm" />
-
-              {/* Arena floor */}
-              <div className="absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-green-700 via-green-600 to-green-500/0" />
-              <div className="absolute inset-x-4 bottom-8 h-24 rounded-[50%] bg-green-800/30 blur-xl" />
-
-              {/* Opponent (top right) */}
-              <div className="absolute top-6 right-4 sm:right-8 z-10">
-                <HpBar
-                  current={hp2}
-                  max={battleResult.pokemon2Stats.hp}
-                  label={pokemon2?.name || ''}
-                  align="right"
+          pokemon1 &&
+          pokemon2 && (
+            <div className="relative">
+              <InteractiveBattleArena
+                key={battleKey}
+                pokemon1={pokemon1}
+                pokemon2={pokemon2}
+                onBattleEnd={handleBattleEnd}
+                onRematch={handleRematch}
+                onExit={onClose}
+              />
+              {showVictory && battleResult && (
+                <VictoryOverlay
+                  winnerImage={winnerImage}
+                  result={battleResult}
+                  saveChoice={saveChoice}
+                  isSaving={isSaving}
+                  saveError={saveError}
+                  onSave={handleSave}
+                  onSkipSave={() => setSaveChoice('skipped')}
+                  onDismiss={() => setShowVictory(false)}
                 />
-              </div>
-
-              <div
-                className={`absolute top-16 right-6 sm:right-16 transition-transform ${
-                  attackSide === 'right' ? 'animate-battle-lunge-right' : ''
-                } ${hitSide === 'right' ? 'animate-battle-hit' : ''}`}
-              >
-                {damagePopup?.side === 'right' && (
-                  <span
-                    className={`absolute -top-6 left-1/2 -translate-x-1/2 font-black text-2xl animate-damage-float ${
-                      damagePopup.superEffective ? 'text-yellow-300' : 'text-white'
-                    } drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]`}
-                  >
-                    -{damagePopup.amount}
-                  </span>
-                )}
-                <Image
-                  src={getPokemonImage(pokemon2!)}
-                  alt={pokemon2?.name || ''}
-                  width={120}
-                  height={120}
-                  className="drop-shadow-2xl scale-x-[-1]"
-                />
-              </div>
-
-              {/* Player (bottom left) */}
-              <div className="absolute bottom-20 left-4 sm:left-8 z-10">
-                <HpBar
-                  current={hp1}
-                  max={battleResult.pokemon1Stats.hp}
-                  label={pokemon1?.name || ''}
-                  align="left"
-                />
-              </div>
-
-              <div
-                className={`absolute bottom-8 left-8 sm:left-16 ${
-                  attackSide === 'left' ? 'animate-battle-lunge-left' : ''
-                } ${hitSide === 'left' ? 'animate-battle-hit' : ''}`}
-              >
-                {damagePopup?.side === 'left' && (
-                  <span
-                    className={`absolute -top-6 left-1/2 -translate-x-1/2 font-black text-2xl animate-damage-float ${
-                      damagePopup.superEffective ? 'text-yellow-300' : 'text-white'
-                    } drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]`}
-                  >
-                    -{damagePopup.amount}
-                  </span>
-                )}
-                <Image
-                  src={getPokemonImage(pokemon1!)}
-                  alt={pokemon1?.name || ''}
-                  width={140}
-                  height={140}
-                  className="drop-shadow-2xl"
-                />
-              </div>
-
-              {/* Turn indicator */}
-              {!isComplete && (
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
-                  {isAnimating && (
-                    <span className="text-4xl font-black text-white/20 animate-pulse">⚡</span>
-                  )}
-                </div>
               )}
             </div>
-
-            {/* Message box (game-style) */}
-            <div className="bg-gray-900 border-t-4 border-gray-700 p-4">
-              <div className="bg-gray-800 rounded-xl border-2 border-gray-600 p-4 min-h-[72px] flex items-center">
-                <p className="text-white font-medium capitalize animate-fadeIn">
-                  {isComplete && !showVictory
-                    ? `${battleResult.winnerName} wins!`
-                    : battleMessage || '…'}
-                </p>
-              </div>
-
-              <div className="flex gap-3 mt-4">
-                <button
-                  onClick={() => {
-                    setBattleResult(null);
-                    setCurrentTurn(0);
-                    setShowVictory(false);
-                    resetBattleAnim();
-                    setBattleMessage('');
-                  }}
-                  className="flex-1 py-2.5 rounded-xl bg-gray-700 text-white font-semibold hover:bg-gray-600 transition-colors"
-                >
-                  Rematch
-                </button>
-                <button
-                  onClick={onClose}
-                  className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold hover:brightness-110 transition-all"
-                >
-                  Exit Arena
-                </button>
-              </div>
-            </div>
-
-            {showVictory && (
-              <VictoryOverlay
-                winnerImage={winnerImage}
-                winnerName={battleResult.winnerName}
-                turns={battleResult.turns}
-                onDismiss={() => setShowVictory(false)}
-              />
-            )}
-          </div>
+          )
         )}
       </div>
     </div>

@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import BattleModal from '@/components/BattleModal';
 import CompareModal from '@/components/CompareModal';
+import TeamAnalyzerModal from '@/components/TeamAnalyzerModal';
 import PokemonSelectorModal from '@/components/PokemonSelectorModal';
 import { PokemonDetails } from '@/types/pokemon';
 
@@ -12,17 +13,119 @@ export default function GamesPage() {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
 
-  // Redirect to login if not authenticated
+  const [showBattleModal, setShowBattleModal] = useState(false);
+  const [showCompareModal, setShowCompareModal] = useState(false);
+  const [showTeamModal, setShowTeamModal] = useState(false);
+  const [showPokemonSelector, setShowPokemonSelector] = useState(false);
+  const [selectorTitle, setSelectorTitle] = useState('');
+  const [selectorCallback, setSelectorCallback] = useState<
+    ((pokemon: PokemonDetails) => void) | null
+  >(null);
+  const [whichModal, setWhichModal] = useState<'battle' | 'compare' | 'team' | null>(null);
+  const selectorCallbackRef = useRef<((pokemon: PokemonDetails) => void) | null>(null);
+  const teamSlotIndexRef = useRef<number>(0);
+
+  const [battlePokemon1, setBattlePokemon1] = useState<PokemonDetails | null>(null);
+  const [battlePokemon2, setBattlePokemon2] = useState<PokemonDetails | null>(null);
+  const [comparePokemon1, setComparePokemon1] = useState<PokemonDetails | null>(null);
+  const [comparePokemon2, setComparePokemon2] = useState<PokemonDetails | null>(null);
+  const [teamPokemon, setTeamPokemon] = useState<PokemonDetails[]>([]);
+
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      // Trigger login modal via custom event
       window.dispatchEvent(new CustomEvent('showLoginModal'));
-      // Optionally redirect to home page
       router.push('/');
     }
   }, [isAuthenticated, isLoading, router]);
 
-  // Show loading state while checking auth
+  const handleSelectBattlePokemon1 = () => {
+    setSelectorTitle('Select Pokémon 1 for Battle');
+    setWhichModal('battle');
+    const callback = (pokemon: PokemonDetails) => {
+      setBattlePokemon1(pokemon);
+    };
+    selectorCallbackRef.current = callback;
+    setSelectorCallback(() => callback);
+    setShowPokemonSelector(true);
+  };
+
+  const handleSelectBattlePokemon2 = () => {
+    setSelectorTitle('Select Pokémon 2 for Battle');
+    setWhichModal('battle');
+    const callback = (pokemon: PokemonDetails) => {
+      setBattlePokemon2(pokemon);
+    };
+    selectorCallbackRef.current = callback;
+    setSelectorCallback(() => callback);
+    setShowPokemonSelector(true);
+  };
+
+  const handleSelectComparePokemon1 = () => {
+    setSelectorTitle('Select Pokémon 1 for Comparison');
+    setWhichModal('compare');
+    const callback = (pokemon: PokemonDetails) => {
+      setComparePokemon1(pokemon);
+    };
+    selectorCallbackRef.current = callback;
+    setSelectorCallback(() => callback);
+    setShowPokemonSelector(true);
+  };
+
+  const handleSelectComparePokemon2 = () => {
+    setSelectorTitle('Select Pokémon 2 for Comparison');
+    setWhichModal('compare');
+    const callback = (pokemon: PokemonDetails) => {
+      setComparePokemon2(pokemon);
+    };
+    selectorCallbackRef.current = callback;
+    setSelectorCallback(() => callback);
+    setShowPokemonSelector(true);
+  };
+
+  const handleSelectTeamSlot = (slotIndex: number) => {
+    teamSlotIndexRef.current = slotIndex;
+    setSelectorTitle(`Select Pokémon for slot ${slotIndex + 1}`);
+    setWhichModal('team');
+    const callback = (pokemon: PokemonDetails) => {
+      setTeamPokemon((prev) => {
+        if (prev.some((p) => p.id === pokemon.id)) return prev;
+        const next = [...prev];
+        if (slotIndex < next.length) {
+          next[slotIndex] = pokemon;
+        } else if (next.length < 6) {
+          next.push(pokemon);
+        }
+        return next.slice(0, 6);
+      });
+    };
+    selectorCallbackRef.current = callback;
+    setSelectorCallback(() => callback);
+    setShowPokemonSelector(true);
+  };
+
+  const handleRemoveFromTeam = (slotIndex: number) => {
+    setTeamPokemon((prev) => prev.filter((_, i) => i !== slotIndex));
+  };
+
+  const handleSelectPokemon = (pokemon: PokemonDetails) => {
+    const callback = selectorCallbackRef.current || selectorCallback;
+
+    if (!callback) {
+      console.error('No callback available!');
+      return;
+    }
+
+    try {
+      callback(pokemon);
+      selectorCallbackRef.current = null;
+      setSelectorCallback(null);
+      setShowPokemonSelector(false);
+      setWhichModal(null);
+    } catch (error) {
+      console.error('Error executing callback:', error);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-100 to-yellow-200 flex items-center justify-center">
@@ -34,14 +137,11 @@ export default function GamesPage() {
     );
   }
 
-  // Show login required message if not authenticated
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-100 to-yellow-200 flex items-center justify-center px-4">
         <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
-          <h1 className="text-2xl font-bold text-gray-800 mb-4">
-            Login Required
-          </h1>
+          <h1 className="text-2xl font-bold text-gray-800 mb-4">Login Required</h1>
           <p className="text-gray-600 mb-6">
             Please log in to access Pokémon games and battle features.
           </p>
@@ -55,92 +155,6 @@ export default function GamesPage() {
       </div>
     );
   }
-  const [showBattleModal, setShowBattleModal] = useState(false);
-  const [showCompareModal, setShowCompareModal] = useState(false);
-  const [showPokemonSelector, setShowPokemonSelector] = useState(false);
-  const [selectorTitle, setSelectorTitle] = useState('');
-  const [selectorCallback, setSelectorCallback] = useState<
-    ((pokemon: PokemonDetails) => void) | null
-  >(null);
-  const [whichModal, setWhichModal] = useState<'battle' | 'compare' | null>(null);
-  const selectorCallbackRef = useRef<((pokemon: PokemonDetails) => void) | null>(null);
-
-  const [battlePokemon1, setBattlePokemon1] = useState<PokemonDetails | null>(null);
-  const [battlePokemon2, setBattlePokemon2] = useState<PokemonDetails | null>(null);
-  const [comparePokemon1, setComparePokemon1] = useState<PokemonDetails | null>(null);
-  const [comparePokemon2, setComparePokemon2] = useState<PokemonDetails | null>(null);
-
-  const handleSelectBattlePokemon1 = () => {
-    setSelectorTitle('Select Pokémon 1 for Battle');
-    setWhichModal('battle');
-    const callback = (pokemon: PokemonDetails) => {
-      setBattlePokemon1(pokemon);
-    };
-    selectorCallbackRef.current = callback;
-    setSelectorCallback(() => callback);
-    // Don't close battle modal, just overlay selector on top
-    setShowPokemonSelector(true);
-  };
-
-  const handleSelectBattlePokemon2 = () => {
-    setSelectorTitle('Select Pokémon 2 for Battle');
-    setWhichModal('battle');
-    const callback = (pokemon: PokemonDetails) => {
-      setBattlePokemon2(pokemon);
-    };
-    selectorCallbackRef.current = callback;
-    setSelectorCallback(() => callback);
-    // Don't close battle modal, just overlay selector on top
-    setShowPokemonSelector(true);
-  };
-
-  const handleSelectComparePokemon1 = () => {
-    setSelectorTitle('Select Pokémon 1 for Comparison');
-    setWhichModal('compare');
-    const callback = (pokemon: PokemonDetails) => {
-      setComparePokemon1(pokemon);
-    };
-    selectorCallbackRef.current = callback;
-    setSelectorCallback(() => callback);
-    // Don't close compare modal, just overlay selector on top
-    setShowPokemonSelector(true);
-  };
-
-  const handleSelectComparePokemon2 = () => {
-    setSelectorTitle('Select Pokémon 2 for Comparison');
-    setWhichModal('compare');
-    const callback = (pokemon: PokemonDetails) => {
-      setComparePokemon2(pokemon);
-    };
-    selectorCallbackRef.current = callback;
-    setSelectorCallback(() => callback);
-    // Don't close compare modal, just overlay selector on top
-    setShowPokemonSelector(true);
-  };
-
-  const handleSelectPokemon = (pokemon: PokemonDetails) => {
-    // Use the ref first as it's more reliable for callbacks
-    const callback = selectorCallbackRef.current || selectorCallback;
-    
-    if (!callback) {
-      console.error('No callback available!');
-      return;
-    }
-
-    try {
-      // Execute the callback to set the Pokemon
-      callback(pokemon);
-      
-      // Clear the callback and close selector
-      // The parent modal stays open, we just close the selector overlay
-      selectorCallbackRef.current = null;
-      setSelectorCallback(null);
-      setShowPokemonSelector(false);
-      setWhichModal(null);
-    } catch (error) {
-      console.error('Error executing callback:', error);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-100 to-yellow-200 p-4 sm:p-8">
@@ -153,7 +167,6 @@ export default function GamesPage() {
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
-          {/* Battle Card */}
           <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg sm:shadow-xl p-6 sm:p-8 hover:shadow-xl sm:hover:shadow-2xl transition-all transform hover:scale-105">
             <div className="text-center mb-6">
               <div className="text-5xl sm:text-6xl mb-4">⚔️</div>
@@ -170,7 +183,6 @@ export default function GamesPage() {
             </button>
           </div>
 
-          {/* Compare Card */}
           <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg sm:shadow-xl p-6 sm:p-8 hover:shadow-xl sm:hover:shadow-2xl transition-all transform hover:scale-105">
             <div className="text-center mb-6">
               <div className="text-5xl sm:text-6xl mb-4">⚖️</div>
@@ -187,24 +199,22 @@ export default function GamesPage() {
             </button>
           </div>
 
-          {/* Team Analyzer Card */}
           <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg sm:shadow-xl p-6 sm:p-8 hover:shadow-xl sm:hover:shadow-2xl transition-all transform hover:scale-105">
             <div className="text-center mb-6">
               <div className="text-5xl sm:text-6xl mb-4">👥</div>
               <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">Team Analyzer</h2>
               <p className="text-gray-600 text-sm sm:text-base">
-                Coming Soon: Analyze your Pokémon team's strengths and weaknesses
+                Build a squad from scratch or favorites — analyze type coverage and team strength
               </p>
             </div>
             <button
-              disabled
-              className="w-full bg-gray-400 text-white py-3 sm:py-4 px-6 rounded-lg sm:rounded-xl font-bold text-base sm:text-lg cursor-not-allowed"
+              onClick={() => setShowTeamModal(true)}
+              className="w-full bg-orange-500 text-white py-3 sm:py-4 px-6 rounded-lg sm:rounded-xl font-bold text-base sm:text-lg hover:bg-orange-600 transition-colors"
             >
-              Coming Soon
+              Analyze Team
             </button>
           </div>
 
-          {/* Recommendations Card */}
           <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg sm:shadow-xl p-6 sm:p-8 hover:shadow-xl sm:hover:shadow-2xl transition-all transform hover:scale-105">
             <div className="text-center mb-6">
               <div className="text-5xl sm:text-6xl mb-4">💡</div>
@@ -227,7 +237,6 @@ export default function GamesPage() {
         isOpen={showBattleModal}
         onClose={() => {
           setShowBattleModal(false);
-          // Reset battle state when closing
           setBattlePokemon1(null);
           setBattlePokemon2(null);
         }}
@@ -241,7 +250,6 @@ export default function GamesPage() {
         isOpen={showCompareModal}
         onClose={() => {
           setShowCompareModal(false);
-          // Reset compare state when closing
           setComparePokemon1(null);
           setComparePokemon2(null);
         }}
@@ -251,10 +259,21 @@ export default function GamesPage() {
         onSelectPokemon2={handleSelectComparePokemon2}
       />
 
+      <TeamAnalyzerModal
+        isOpen={showTeamModal}
+        onClose={() => {
+          setShowTeamModal(false);
+          setTeamPokemon([]);
+        }}
+        team={teamPokemon}
+        onSelectSlot={handleSelectTeamSlot}
+        onRemoveFromTeam={handleRemoveFromTeam}
+        onSetTeam={setTeamPokemon}
+      />
+
       <PokemonSelectorModal
         isOpen={showPokemonSelector}
         onClose={() => {
-          // Just close the selector, parent modal stays open
           selectorCallbackRef.current = null;
           setSelectorCallback(null);
           setShowPokemonSelector(false);
@@ -266,4 +285,3 @@ export default function GamesPage() {
     </div>
   );
 }
-

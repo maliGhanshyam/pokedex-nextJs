@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Battle, BattleDocument } from '../entities/battle.entity';
 import { Pokemon, PokemonDocument } from '../entities/pokemon.entity';
-import { BattleRequestDto, BattleResponseDto, BattleLogEntryDto } from '../common/dto/battle.dto';
+import { BattleRequestDto, BattleResponseDto, SaveBattleDto, BattleLogEntryDto } from '../common/dto/battle.dto';
 import {
   getTypeEffectiveness,
   getPokemonTypes,
@@ -90,19 +90,6 @@ export class BattleService {
       const winner = hp1 > 0 ? pokemon1 : pokemon2;
       const loser = hp1 > 0 ? pokemon2 : pokemon1;
 
-      try {
-        await this.battleModel.create({
-          userId,
-          pokemon1Id: pokemon1.id,
-          pokemon2Id: pokemon2.id,
-          winnerId: winner.id,
-          battleLog,
-          turns: turn,
-        });
-      } catch (dbError) {
-        console.error('Failed to save battle to database:', dbError);
-      }
-
       return {
         winnerId: winner.id,
         winnerName: winner.name,
@@ -119,6 +106,32 @@ export class BattleService {
       }
       throw new Error(`Failed to simulate battle: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
+  }
+
+  async saveBattleResult(userId: string, dto: SaveBattleDto): Promise<{ saved: boolean }> {
+    const [pokemon1, pokemon2] = await Promise.all([
+      this.pokemonModel.findOne({ id: dto.pokemon1Id }).lean().exec(),
+      this.pokemonModel.findOne({ id: dto.pokemon2Id }).lean().exec(),
+    ]);
+
+    if (!pokemon1 || !pokemon2) {
+      throw new NotFoundException('One or both Pokémon not found');
+    }
+
+    if (dto.winnerId !== pokemon1.id && dto.winnerId !== pokemon2.id) {
+      throw new NotFoundException('Winner must be one of the battling Pokémon');
+    }
+
+    await this.battleModel.create({
+      userId,
+      pokemon1Id: dto.pokemon1Id,
+      pokemon2Id: dto.pokemon2Id,
+      winnerId: dto.winnerId,
+      battleLog: dto.battleLog || [],
+      turns: dto.turns,
+    });
+
+    return { saved: true };
   }
 
   private extractStats(pokemon: Pokemon) {
